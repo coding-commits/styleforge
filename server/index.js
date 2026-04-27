@@ -160,6 +160,7 @@ const TOOLS = [
         skip_near: { type: "boolean", default: false, description: "Drop near-duplicates entirely from the batch." },
         threshold: { type: "integer", default: 6 },
         no_snapshot: { type: "boolean", default: false, description: "Dangerous. Only set when caller has just snapshotted." },
+        message: { type: "string", description: "Snapshot message describing what was ingested (e.g. 'ingest 3 articles about Song dynasty')." },
       },
       required: ["slug", "files"],
       additionalProperties: false,
@@ -434,7 +435,7 @@ When writing in this author's style:
     return ok({ mode: "dry_run", plan });
   },
 
-  async ingest_execute({ slug, files, weight = 1.0, allow_near = false, skip_near = false, threshold = 6, no_snapshot = false }) {
+  async ingest_execute({ slug, files, weight = 1.0, allow_near = false, skip_near = false, threshold = 6, no_snapshot = false, message = "" }) {
     ensureSlug(slug);
     if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
     const paths = new AuthorPaths(slug);
@@ -451,6 +452,7 @@ When writing in this author's style:
       weight,
       takeSnapshot: !no_snapshot,
       allowNear: allow_near,
+      message,
     });
     return ok({ mode: "executed", ...result });
   },
@@ -687,7 +689,9 @@ const PROMPTS = {
         "3. **Batch limit: 5 files**. Split larger batches and walk each through the full flow.",
         "4. Call `ingest_dryrun`. Show the user: new_files / exact_duplicates / near_duplicates.",
         "   If near_duplicates exist, ask explicitly: (a) treat as new, (b) skip, (c) cancel.",
-        "5. After confirmation, call `ingest_execute` with allow_near or skip_near as agreed.",
+        "5. After confirmation, call `ingest_execute`. **Important**: pass a `message` parameter",
+        "   summarizing what was ingested (e.g. 'ingest 3 articles about Song dynasty history').",
+        "   This message is stored with the snapshot so the user can identify it later during rollback.",
         "6. **Enrichment (critical)**: for each new entry, view the source file, then call",
         "   `record_pattern_evidence` with topics + pattern_ids. Pull pattern_ids from the",
         "   author's existing style-patterns.md (call `get_writing_guide`). Novel patterns",
@@ -723,6 +727,28 @@ const PROMPTS = {
         "",
         "Never: modify style-patterns.md directly, accept proposals without confirmation,",
         "or strip original feedback log entries.",
+        "",
+        `slug: ${slug}`,
+      ].join("\n");
+    },
+  },
+  "style-rollback": {
+    description: "Interactively roll back an author's state to a previous snapshot.",
+    arguments: [
+      { name: "slug", description: "Author slug.", required: false },
+    ],
+    build({ slug = "" }) {
+      return [
+        "Help the user roll back a styleforge author to a previous state. Follow this exactly:",
+        "",
+        "1. If slug is given, use it. Otherwise call `list_authors` and ask.",
+        "2. Call `list_snapshots` for that slug.",
+        "3. Present the snapshots as a numbered list, newest first. For each show:",
+        "   - timestamp (human-readable)",
+        "   - label/message (this is the commit message describing what happened)",
+        "4. Ask the user which snapshot to roll back to.",
+        "5. After the user picks one, call `rollback` with the chosen snapshot name.",
+        "6. Report success and the pre-rollback snapshot name (in case they want to undo).",
         "",
         `slug: ${slug}`,
       ].join("\n");

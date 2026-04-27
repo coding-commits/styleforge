@@ -130,7 +130,7 @@ export async function planIngest(paths, files, { hammingThreshold = 6 } = {}) {
  * Execute the plan. Each new file is copied into corpus/, indexed,
  * and a snapshot is taken before any change.
  */
-export async function executeIngest(paths, plan, { weight = 1.0, takeSnapshot = true, allowNear = false } = {}) {
+export async function executeIngest(paths, plan, { weight = 1.0, takeSnapshot = true, allowNear = false, message = "" } = {}) {
   const result = { plan, ingested: [], snapshot: null };
 
   // If allow_near, promote near_duplicates to new_files.
@@ -155,7 +155,8 @@ export async function executeIngest(paths, plan, { weight = 1.0, takeSnapshot = 
   }
 
   if (takeSnapshot) {
-    const snap = await createSnapshot(paths, { label: `pre-ingest-${plan.new_files.length}files` });
+    const label = message || `pre-ingest-${plan.new_files.length}files`;
+    const snap = await createSnapshot(paths, { label });
     result.snapshot = snap.name;
   }
 
