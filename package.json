@@ -1,0 +1,17 @@
+{
+  "name": "styleforge",
+  "version": "0.1.0",
+  "description": "Styleforge MCP server",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test server/core/*.test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
