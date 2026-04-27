@@ -147,9 +147,9 @@ npx @anthropic-ai/mcpb pack . styleforge.mcpb
 
 ## Docs
 
-- [Architecture](docs/architecture.md)
-- [Adding an author](docs/adding-an-author.md)
-- [Troubleshooting](docs/troubleshooting.md)
+- [Architecture](docs/en/architecture.md)
+- [Adding an author](docs/en/adding-an-author.md)
+- [Troubleshooting](docs/en/troubleshooting.md)
 
 ## License
 
