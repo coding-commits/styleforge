@@ -9,7 +9,7 @@
   "author": {
     "name": "styleforge"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/coding-commits/styleforge",
   "server": {
     "type": "node",
