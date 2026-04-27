@@ -155,9 +155,9 @@ npx @anthropic-ai/mcpb pack . styleforge.mcpb
 
 ## 文档
 
-- [架构](docs/architecture.md)
-- [新增作者](docs/adding-an-author.md)
-- [故障排查](docs/troubleshooting.md)
+- [架构](docs/zh/architecture.md)
+- [新增作者](docs/zh/adding-an-author.md)
+- [故障排查](docs/zh/troubleshooting.md)
 
 ## License
 
