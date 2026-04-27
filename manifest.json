@@ -4,8 +4,8 @@
   "name": "styleforge",
   "display_name": "Styleforge",
   "version": "0.1.0",
-  "description": "Per-author Chinese writing-style management for Claude.",
-  "long_description": "Maintain isolated writing-style libraries for one or more Chinese essay writers. Ingest new corpus with deduplication and snapshots. Get on-demand writing guides via MCP tools and `/style-write` slash commands. Includes feedback intake and rollback for misingested corpus.",
+  "description": "Per-author writing-style management via MCP.",
+  "long_description": "Maintain isolated writing-style libraries for one or more authors in any language. Ingest new corpus with deduplication and snapshots. Get on-demand writing guides via MCP tools and `/style-write` slash commands. Includes feedback intake and rollback for misingested corpus.",
   "author": {
     "name": "styleforge"
   },
@@ -70,6 +70,17 @@
       "description": "Digest accumulated user feedback into actionable learned-rules. User confirms each proposal.",
       "arguments": ["slug"],
       "text": "Process accumulated feedback for a styleforge author. Follow this exactly:\n\n1. Call `list_authors` and confirm the slug. If missing, ask.\n2. Call `get_feedback_log` to read all undigested entries.\n3. Call `create_snapshot` with label `pre-feedback-review`.\n4. Group recurring failure modes. Single-occurrence issues are weaker candidates. Contradictory feedback should be SHOWN to the user, not auto-resolved.\n5. Present a numbered list of proposed learned-rules. For each: trigger / corrective action / source feedback / confidence.\n6. Wait for user accept/reject/edit on each proposal.\n7. For each accepted (or user-edited) proposal, call `apply_learned_rule` with the final wording.\n8. Briefly report: K accepted, K rejected, snapshot id for rollback.\n\nNever: modify style-patterns.md (that's ingest-review territory), accept proposals without user confirmation, or strip original feedback log entries.\n\nslug: {{slug}}"
+    },
+    {
+      "name": "style-authors",
+      "description": "List all registered styleforge authors.",
+      "text": "Call `list_authors` and present the results as a concise table (slug, display name)."
+    },
+    {
+      "name": "style-stats",
+      "description": "Show corpus statistics for a styleforge author.",
+      "arguments": ["slug"],
+      "text": "Show statistics for a styleforge author.\n\n1. If slug is given, use it. Otherwise call `list_authors` and ask.\n2. Call `get_stats` for that slug.\n3. Present the result clearly: entry count, topic breakdown, pattern frequencies, and any sample_warning.\n\nslug: {{slug}}"
     }
   ],
   "compatibility": {

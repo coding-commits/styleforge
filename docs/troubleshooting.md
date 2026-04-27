@@ -75,17 +75,17 @@ tar czf styleforge-data.tar.gz -C $(dirname $STYLEFORGE_HOME) $(basename $STYLEF
 tar xzf styleforge-data.tar.gz -C ~  # 假设默认位置
 ```
 
-或者:在 Claude Desktop 安装 styleforge 时,直接把 data_dir 设为云盘里的路径(iCloud/Dropbox/OneDrive),自动同步。注意快照目录会膨胀,留意磁盘配额。
+或者:安装 styleforge 时,直接把 data_dir 设为云盘里的路径(iCloud/Dropbox/OneDrive),自动同步。注意快照目录会膨胀,留意磁盘配额。
 
 ## 重装 / 升级 styleforge
 
 `.mcpb` 升级不影响 `$STYLEFORGE_HOME` 数据。直接安装新版本即可。
 
-如果你想换数据目录:在 Claude Desktop 的 Extensions 设置里改 styleforge 的 data_dir,然后手动把旧路径里的 `authors/` 移过去。
+如果你想换数据目录:在 MCP 客户端的扩展设置里改 styleforge 的 data_dir,然后手动把旧路径里的 `authors/` 移过去。
 
 ## 排查 server 日志
 
-Claude Desktop 的扩展日志在:
+以 Claude Desktop 为例,扩展日志在:
 - macOS: `~/Library/Logs/Claude/mcp*.log`
 - Windows: `%APPDATA%\Claude\logs\mcp*.log`
 

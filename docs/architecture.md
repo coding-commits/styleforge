@@ -2,11 +2,11 @@
 
 ## 三层结构
 
-styleforge 是一个 MCP server,运行在用户机器上,通过 stdio 与 Claude Desktop 通信。
+styleforge 是一个 MCP server,运行在用户机器上,通过 stdio 与 MCP 客户端通信。
 
 ```
-Claude Desktop  ⇄  styleforge MCP server  ⇄  filesystem
-                   (Node.js, stdio)         (~/.styleforge/)
+MCP 客户端  ⇄  styleforge MCP server  ⇄  filesystem
+                (Node.js, stdio)         (~/.styleforge/)
 ```
 
 ## 工具与 Prompts 的边界

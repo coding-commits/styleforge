@@ -3,7 +3,7 @@
  * styleforge MCP server
  *
  * Exposes 16 tools + 3 prompts that an agent uses to maintain per-author
- * Chinese writing-style libraries:
+ * writing-style libraries (any language):
  *
  *   - list_authors / create_author / delete_author
  *   - get_writing_guide                        (the "skill content" — fetched on demand)
@@ -723,6 +723,30 @@ const PROMPTS = {
         "",
         "Never: modify style-patterns.md directly, accept proposals without confirmation,",
         "or strip original feedback log entries.",
+        "",
+        `slug: ${slug}`,
+      ].join("\n");
+    },
+  },
+  "style-authors": {
+    description: "List all registered styleforge authors.",
+    arguments: [],
+    build() {
+      return "Call `list_authors` and present the results as a concise table (slug, display name).";
+    },
+  },
+  "style-stats": {
+    description: "Show corpus statistics for a styleforge author.",
+    arguments: [
+      { name: "slug", description: "Author slug.", required: false },
+    ],
+    build({ slug = "" }) {
+      return [
+        "Show statistics for a styleforge author.",
+        "",
+        "1. If slug is given, use it. Otherwise call `list_authors` and ask.",
+        "2. Call `get_stats` for that slug.",
+        "3. Present the result clearly: entry count, topic breakdown, pattern frequencies, and any sample_warning.",
         "",
         `slug: ${slug}`,
       ].join("\n");
