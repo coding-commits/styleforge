@@ -1,17 +1,27 @@
 {
   "name": "styleforge",
-  "version": "0.1.0",
-  "description": "Styleforge MCP server",
+  "version": "0.2.0",
+  "description": "Per-author writing-style management via MCP. Works with any language.",
   "main": "server/index.js",
   "type": "module",
+  "bin": {
+    "styleforge": "./bin/cli.js"
+  },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test server/core/*.test.js"
+    "test": "STYLEFORGE_HOME=/tmp/styleforge-test node server/smoke-test.js",
+    "postinstall": "node bin/postinstall.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coding-commits/styleforge.git"
+  },
+  "homepage": "https://github.com/coding-commits/styleforge",
+  "keywords": ["mcp", "writing", "style", "claude", "llm"],
   "engines": {
     "node": ">=18.0.0"
   }

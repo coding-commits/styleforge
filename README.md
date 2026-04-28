@@ -17,20 +17,21 @@ curl -L https://github.com/coding-commits/styleforge/releases/latest/download/st
 
 Claude Desktop will prompt to install. Slash commands (`/style-write`, etc.) work out of the box.
 
-### Claude Code / other MCP clients
+### Claude Code / other MCP clients (npm)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/coding-commits/styleforge/main/install.sh | bash
+npm install -g styleforge
 ```
 
-This installs:
-- **MCP server** (tools) → `~/.local/share/styleforge-mcp/`
-- **Slash commands** → `~/.claude/commands/style-*.md`
+This automatically:
+- Installs **slash commands** → `~/.claude/commands/style-*.md`
+- Prints the command to register the MCP server
 
-After running, register the MCP server:
+Then register:
 
 ```bash
-claude mcp add styleforge node ~/.local/share/styleforge-mcp/server/index.js -e STYLEFORGE_HOME=~/.styleforge
+styleforge setup   # shows the exact command, or:
+claude mcp add styleforge -- node $(npm root -g)/styleforge/server/index.js -e STYLEFORGE_HOME=~/.styleforge
 ```
 
 ### Common notes

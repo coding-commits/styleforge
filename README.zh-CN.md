@@ -17,20 +17,21 @@ curl -L https://github.com/coding-commits/styleforge/releases/latest/download/st
 
 Claude Desktop 会弹出安装确认。Slash command（`/style-write` 等）开箱即用。
 
-### Claude Code / 其他 MCP 客户端
+### Claude Code / 其他 MCP 客户端（npm）
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/coding-commits/styleforge/main/install.sh | bash
+npm install -g styleforge
 ```
 
-这会安装：
-- **MCP server**（工具）→ `~/.local/share/styleforge-mcp/`
-- **Slash commands** → `~/.claude/commands/style-*.md`
+自动完成：
+- 安装 **slash commands** → `~/.claude/commands/style-*.md`
+- 打印 MCP server 注册命令
 
-然后注册 MCP server：
+然后注册：
 
 ```bash
-claude mcp add styleforge node ~/.local/share/styleforge-mcp/server/index.js -e STYLEFORGE_HOME=~/.styleforge
+styleforge setup   # 会显示具体命令，或者直接：
+claude mcp add styleforge -- node $(npm root -g)/styleforge/server/index.js -e STYLEFORGE_HOME=~/.styleforge
 ```
 
 ### 通用说明
