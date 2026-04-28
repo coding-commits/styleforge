@@ -4,27 +4,44 @@
 
 为任意 MCP 客户端维护**多个作者的写作风格**（支持任何语言）。一键安装(`.mcpb`)、按需扩充语料、误操作可回退。
 
-## 安装(一行复制即可)
+## 安装
 
-打开终端,粘贴这一行:
+### Claude Desktop（`.mcpb` 一键安装）
 
 ```bash
-curl -L https://github.com/coding-commits/styleforge/releases/latest/download/styleforge.mcpb -o ~/Downloads/styleforge.mcpb && open ~/Downloads/styleforge.mcpb
+curl -L https://github.com/coding-commits/styleforge/releases/latest/download/styleforge.mcpb \
+  -o ~/Downloads/styleforge.mcpb && open ~/Downloads/styleforge.mcpb
 ```
 
-(Windows 用户:在 PowerShell 里运行类似命令,然后双击下载到的 `.mcpb` 文件。)
+（Windows 用户：PowerShell 里运行，然后双击 `.mcpb` 文件。）
 
-MCP 客户端（如 Claude Desktop）会弹出安装确认，点确认即可。装完之后:
+Claude Desktop 会弹出安装确认。Slash command（`/style-write` 等）开箱即用。
 
-- **安装时设置数据目录**:默认 `~/.styleforge/`,你可以改到任何路径(比如同步盘里),你的语料和快照都在这里。
-- **不需要 npm,不需要 Python,不需要改任何配置文件**——`.mcpb` 自带运行所需的一切。
-
-如果你没有 GitHub release(自己 build 的情况),把这个仓库 clone 下来,然后:
+### Claude Code / 其他 MCP 客户端
 
 ```bash
+curl -sSL https://raw.githubusercontent.com/coding-commits/styleforge/main/install.sh | bash
+```
+
+这会安装：
+- **MCP server**（工具）→ `~/.local/share/styleforge-mcp/`
+- **Slash commands** → `~/.claude/commands/style-*.md`
+
+然后注册 MCP server：
+
+```bash
+claude mcp add styleforge node ~/.local/share/styleforge-mcp/server/index.js -e STYLEFORGE_HOME=~/.styleforge
+```
+
+### 通用说明
+
+- **数据目录**：默认 `~/.styleforge/`，可以改到同步盘里，语料和快照都在这里。
+- 从源码构建：
+
+```bash
+git clone https://github.com/coding-commits/styleforge.git && cd styleforge
 npm install
-npx @anthropic-ai/mcpb pack .
-# 生成 styleforge.mcpb,双击即可
+npx @anthropic-ai/mcpb pack .  # 生成 styleforge.mcpb，供 Claude Desktop 使用
 ```
 
 ## 启动后怎么用

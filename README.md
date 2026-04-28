@@ -4,7 +4,9 @@
 
 Per-author **writing-style management** for any MCP client. Works with any language. One-click install (`.mcpb`), incremental corpus ingestion, full rollback support.
 
-## Install (one command)
+## Install
+
+### Claude Desktop (`.mcpb` one-click)
 
 ```bash
 curl -L https://github.com/coding-commits/styleforge/releases/latest/download/styleforge.mcpb \
@@ -13,17 +15,33 @@ curl -L https://github.com/coding-commits/styleforge/releases/latest/download/st
 
 (Windows: use PowerShell, then double-click the downloaded `.mcpb` file.)
 
-Your MCP client (e.g. Claude Desktop) will prompt to install. After that:
+Claude Desktop will prompt to install. Slash commands (`/style-write`, etc.) work out of the box.
 
-- **Data directory**: defaults to `~/.styleforge/`. You can point it at a synced folder — all corpus and snapshots live here.
-- **No npm, no Python, no config editing** — the `.mcpb` bundles everything needed.
-
-To build from source:
+### Claude Code / other MCP clients
 
 ```bash
+curl -sSL https://raw.githubusercontent.com/coding-commits/styleforge/main/install.sh | bash
+```
+
+This installs:
+- **MCP server** (tools) → `~/.local/share/styleforge-mcp/`
+- **Slash commands** → `~/.claude/commands/style-*.md`
+
+After running, register the MCP server:
+
+```bash
+claude mcp add styleforge node ~/.local/share/styleforge-mcp/server/index.js -e STYLEFORGE_HOME=~/.styleforge
+```
+
+### Common notes
+
+- **Data directory**: defaults to `~/.styleforge/`. Point it at a synced folder if you like — all corpus and snapshots live here.
+- To build from source:
+
+```bash
+git clone https://github.com/coding-commits/styleforge.git && cd styleforge
 npm install
-npx @anthropic-ai/mcpb pack .
-# produces styleforge.mcpb — double-click to install
+npx @anthropic-ai/mcpb pack .  # produces styleforge.mcpb for Claude Desktop
 ```
 
 ## Usage
