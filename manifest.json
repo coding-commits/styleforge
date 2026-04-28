@@ -26,10 +26,10 @@
   },
   "user_config": {
     "data_dir": {
-      "type": "directory",
+      "type": "string",
       "title": "Data directory",
-      "description": "Where styleforge stores authors, corpus, snapshots, and changelog. Pick a stable folder you back up — your corpus lives here.",
-      "required": true,
+      "description": "Where styleforge stores authors, corpus, snapshots, and changelog (default: ~/.styleforge). The server also needs to read source files from arbitrary paths during ingest, so this must NOT be sandboxed.",
+      "required": false,
       "default": "${HOME}/.styleforge"
     }
   },
