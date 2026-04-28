@@ -13,7 +13,7 @@
     "postinstall": "node bin/postinstall.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "license": "GPL-3.0-or-later",
   "repository": {
@@ -21,7 +21,13 @@
     "url": "https://github.com/coding-commits/styleforge.git"
   },
   "homepage": "https://github.com/coding-commits/styleforge",
-  "keywords": ["mcp", "writing", "style", "claude", "llm"],
+  "keywords": [
+    "mcp",
+    "writing",
+    "style",
+    "claude",
+    "llm"
+  ],
   "engines": {
     "node": ">=18.0.0"
   }

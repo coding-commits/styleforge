@@ -55,27 +55,23 @@
   "prompts": [
     {
       "name": "style-write",
-      "description": "Write or rewrite a piece in a specific author's style. Ask for the slug if not provided.",
-      "arguments": ["slug", "task"],
-      "text": "I want you to write in the style of a specific styleforge author. Follow this protocol exactly:\n\n1. If a slug is given below, use it. Otherwise call `list_authors` and ask the user which one to use.\n2. Call `get_writing_guide` for that slug. It returns SKILL_OVERLAY + style-patterns + learned-rules. Read it carefully.\n3. Optionally call `sample_corpus` (k=2-3) for grounding examples.\n4. Draft the piece. Strict rule: replicate the author's STRUCTURE / SYNTAX / RHETORIC ONLY. Do NOT import the author's political stance into a topic where the user did not ask for it. The user's stated stance always wins.\n5. Self-check against the §4 \"failure modes\" section of style-patterns.md.\n6. Deliver. Then ask the user briefly: \"Satisfied? If not, tell me what's off and I'll record it via record_feedback so style-feedback can pick it up later.\"\n\nslug: {{slug}}\ntask: {{task}}"
+      "description": "Write or rewrite a piece in a specific author's style.",
+      "text": "I want you to write in the style of a specific styleforge author.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.\n2. Call `get_writing_guide` for that slug. Read the returned guide carefully.\n3. Optionally call `sample_corpus` (k=2-3) for grounding examples.\n4. Ask the user what they want written (if they haven't already said).\n5. Draft the piece. Replicate STRUCTURE / SYNTAX / RHETORIC ONLY. Do NOT import the author's political stance unless explicitly requested. The user's stated stance always wins.\n6. Self-check against the §4 \"failure modes\" section of style-patterns.md.\n7. Deliver. Then briefly ask: \"Satisfied? If not, tell me what's off and I'll log it via record_feedback.\""
     },
     {
       "name": "style-ingest",
-      "description": "Ingest new articles into an author's corpus. Always dry-runs first.",
-      "arguments": ["slug", "files"],
-      "text": "Ingest articles into a styleforge author's corpus. Follow this exactly:\n\n1. Confirm the author exists via `list_authors`. If the slug is missing, ask.\n2. Resolve file paths. If the user pasted text rather than file paths, save each piece as a separate .txt file under a sensible name (date + topic stem) before ingesting.\n3. **Batch limit: 5 files**. If more, split into batches and walk each batch through the full flow.\n4. Call `ingest_dryrun`. Show the user the plan: new_files / exact_duplicates / near_duplicates. If near_duplicates exist, ask the user explicitly: (a) treat as new (allow_near), (b) skip them, or (c) cancel.\n5. After confirmation, call `ingest_execute`. **Important**: pass a `message` parameter summarizing what was ingested (e.g. 'ingest 3 articles about Song dynasty history'). This message is stored with the snapshot for later identification during rollback.\n6. **Enrichment step (critical)**: for each new entry, view the source file, then call `record_pattern_evidence` with topics + pattern_ids. Refer to the author's existing style-patterns.md for the pattern_id catalog.\n7. Call `recompute_stats`.\n8. Report ingested count, snapshot id, and how to rollback if needed.\n\nslug: {{slug}}\nfiles: {{files}}"
+      "description": "Ingest new articles into an author's corpus. Provide local file paths.",
+      "text": "Ingest articles into a styleforge author's corpus.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Ask for local file paths on the user's machine. Files must be accessible from the local filesystem.\n3. Batch limit: 5 files. Split larger batches.\n4. Call `ingest_dryrun`. Show: new_files / exact_duplicates / near_duplicates. If near-dups, ask: (a) treat as new, (b) skip, (c) cancel.\n5. After confirmation, call `ingest_execute` with a descriptive `message` parameter.\n6. Enrichment: for each new entry, read the source, call `record_pattern_evidence` with topics + pattern_ids. Novel patterns go through `append_observation`.\n7. Call `recompute_stats`.\n8. Report: ingested count, snapshot id, rollback hint."
     },
     {
       "name": "style-feedback",
-      "description": "Digest accumulated user feedback into actionable learned-rules. User confirms each proposal.",
-      "arguments": ["slug"],
-      "text": "Process accumulated feedback for a styleforge author. Follow this exactly:\n\n1. Call `list_authors` and confirm the slug. If missing, ask.\n2. Call `get_feedback_log` to read all undigested entries.\n3. Call `create_snapshot` with label `pre-feedback-review`.\n4. Group recurring failure modes. Single-occurrence issues are weaker candidates. Contradictory feedback should be SHOWN to the user, not auto-resolved.\n5. Present a numbered list of proposed learned-rules. For each: trigger / corrective action / source feedback / confidence.\n6. Wait for user accept/reject/edit on each proposal.\n7. For each accepted (or user-edited) proposal, call `apply_learned_rule` with the final wording.\n8. Briefly report: K accepted, K rejected, snapshot id for rollback.\n\nNever: modify style-patterns.md (that's ingest-review territory), accept proposals without user confirmation, or strip original feedback log entries.\n\nslug: {{slug}}"
+      "description": "Digest accumulated feedback into actionable learned-rules.",
+      "text": "Process accumulated feedback for a styleforge author.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Call `get_feedback_log` to read all entries.\n3. Call `create_snapshot` with label `pre-feedback-review`.\n4. Group recurring failure modes. Contradictory feedback: show to user, don't auto-resolve.\n5. Present proposed learned-rules: trigger / corrective_action / confidence.\n6. Wait for user accept/reject/edit on each.\n7. For accepted proposals, call `apply_learned_rule`.\n8. Report: K accepted, K rejected, snapshot id."
     },
     {
       "name": "style-rollback",
-      "description": "Interactively roll back an author's state to a previous snapshot.",
-      "arguments": ["slug"],
-      "text": "Help the user roll back a styleforge author to a previous state. Follow this exactly:\n\n1. If slug is given, use it. Otherwise call `list_authors` and ask.\n2. Call `list_snapshots` for that slug.\n3. Present the snapshots as a numbered list, newest first. For each show:\n   - timestamp (human-readable)\n   - label/message (this is the commit message describing what happened)\n4. Ask the user which snapshot to roll back to.\n5. After the user picks one, call `rollback` with the chosen snapshot name.\n6. Report success and the pre-rollback snapshot name (in case they want to undo).\n\nslug: {{slug}}"
+      "description": "Roll back an author's state to a previous snapshot.",
+      "text": "Help the user roll back a styleforge author to a previous state.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Call `list_snapshots`.\n3. Present numbered list (newest first) with timestamp and label/message.\n4. Ask user which to restore.\n5. Call `rollback`. Report success and pre-rollback snapshot name."
     },
     {
       "name": "style-authors",
@@ -85,8 +81,7 @@
     {
       "name": "style-stats",
       "description": "Show corpus statistics for a styleforge author.",
-      "arguments": ["slug"],
-      "text": "Show statistics for a styleforge author.\n\n1. If slug is given, use it. Otherwise call `list_authors` and ask.\n2. Call `get_stats` for that slug.\n3. Present the result clearly: entry count, topic breakdown, pattern frequencies, and any sample_warning.\n\nslug: {{slug}}"
+      "text": "Show statistics for a styleforge author.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Call `get_stats`.\n3. Present: entry count, topic breakdown, pattern frequencies, sample_warning if applicable."
     }
   ],
   "compatibility": {

@@ -1,0 +1,10 @@
+{
+  "styleforge": {
+    "type": "stdio",
+    "command": "node",
+    "args": ["server/index.js"],
+    "env": {
+      "STYLEFORGE_HOME": "~/.styleforge"
+    }
+  }
+}

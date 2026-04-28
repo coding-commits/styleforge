@@ -650,42 +650,35 @@ When writing in this author's style:
 
 const PROMPTS = {
   "style-write": {
-    description: "Write or rewrite a piece in a styleforge author's style.",
-    arguments: [
-      { name: "slug", description: "Author slug (e.g. hbdxsl).", required: false },
-      { name: "task", description: "What to write or rewrite.", required: false },
-    ],
-    build({ slug = "", task = "" }) {
+    description: "Write or rewrite a piece in a specific author's style. Just say what you want written after selecting this.",
+    arguments: [],
+    build() {
       return [
         "I want you to write in the style of a specific styleforge author.",
         "Follow this protocol exactly:",
         "",
-        "1. If a slug is given, use it. Otherwise call `list_authors` and ask the user which one.",
+        "1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.",
         "2. Call `get_writing_guide` for that slug. Read the returned guide carefully.",
         "3. Optionally call `sample_corpus` (k=2-3) for grounding examples.",
-        "4. Draft the piece. Strict rule: replicate STRUCTURE / SYNTAX / RHETORIC ONLY.",
+        "4. Ask the user what they want written (if they haven't already said).",
+        "5. Draft the piece. Strict rule: replicate STRUCTURE / SYNTAX / RHETORIC ONLY.",
         "   Do NOT import the author's political stance into a topic the user did not ask for.",
         "   The user's stated stance always wins.",
-        "5. Self-check against the §4 'failure modes' section of style-patterns.md.",
-        "6. Deliver. Then briefly: \"Satisfied? If not, tell me what's off and I'll log it via record_feedback.\"",
-        "",
-        `slug: ${slug}`,
-        `task: ${task}`,
+        "6. Self-check against the §4 'failure modes' section of style-patterns.md.",
+        "7. Deliver. Then briefly: \"Satisfied? If not, tell me what's off and I'll log it via record_feedback.\"",
       ].join("\n");
     },
   },
   "style-ingest": {
-    description: "Ingest new articles into an author's corpus (always dry-runs first).",
-    arguments: [
-      { name: "slug", description: "Author slug.", required: false },
-      { name: "files", description: "Comma-separated paths, or describe inline.", required: false },
-    ],
-    build({ slug = "", files = "" }) {
+    description: "Ingest new articles into an author's corpus. Provide local file paths on your machine.",
+    arguments: [],
+    build() {
       return [
         "Ingest articles into a styleforge author's corpus. Follow this exactly:",
         "",
-        "1. Confirm the author exists via `list_authors`. If slug missing, ask.",
-        "2. Resolve file paths. If user pasted text, save each as a separate .txt under a sensible name first.",
+        "1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.",
+        "2. Ask the user for file paths (must be local paths on their machine, e.g. ~/Documents/...).",
+        "   If user pasted text, save each as a separate .txt under a sensible name first.",
         "3. **Batch limit: 5 files**. Split larger batches and walk each through the full flow.",
         "4. Call `ingest_dryrun`. Show the user: new_files / exact_duplicates / near_duplicates.",
         "   If near_duplicates exist, ask explicitly: (a) treat as new, (b) skip, (c) cancel.",
@@ -698,22 +691,17 @@ const PROMPTS = {
         "   go through `append_observation`, not record_pattern_evidence.",
         "7. Call `recompute_stats`.",
         "8. Report: ingested count, snapshot id, rollback hint.",
-        "",
-        `slug: ${slug}`,
-        `files: ${files}`,
       ].join("\n");
     },
   },
   "style-feedback": {
-    description: "Digest accumulated feedback into actionable learned-rules.",
-    arguments: [
-      { name: "slug", description: "Author slug.", required: false },
-    ],
-    build({ slug = "" }) {
+    description: "Digest accumulated feedback into actionable learned-rules for an author.",
+    arguments: [],
+    build() {
       return [
         "Process accumulated feedback for a styleforge author. Follow this exactly:",
         "",
-        "1. Call `list_authors` and confirm the slug. If missing, ask.",
+        "1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.",
         "2. Call `get_feedback_log` to read all entries.",
         "3. Call `create_snapshot` with label `pre-feedback-review`.",
         "4. Group recurring failure modes. Single occurrences are weak candidates.",
@@ -727,21 +715,17 @@ const PROMPTS = {
         "",
         "Never: modify style-patterns.md directly, accept proposals without confirmation,",
         "or strip original feedback log entries.",
-        "",
-        `slug: ${slug}`,
       ].join("\n");
     },
   },
   "style-rollback": {
-    description: "Interactively roll back an author's state to a previous snapshot.",
-    arguments: [
-      { name: "slug", description: "Author slug.", required: false },
-    ],
-    build({ slug = "" }) {
+    description: "Roll back an author's state to a previous snapshot.",
+    arguments: [],
+    build() {
       return [
         "Help the user roll back a styleforge author to a previous state. Follow this exactly:",
         "",
-        "1. If slug is given, use it. Otherwise call `list_authors` and ask.",
+        "1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.",
         "2. Call `list_snapshots` for that slug.",
         "3. Present the snapshots as a numbered list, newest first. For each show:",
         "   - timestamp (human-readable)",
@@ -749,8 +733,6 @@ const PROMPTS = {
         "4. Ask the user which snapshot to roll back to.",
         "5. After the user picks one, call `rollback` with the chosen snapshot name.",
         "6. Report success and the pre-rollback snapshot name (in case they want to undo).",
-        "",
-        `slug: ${slug}`,
       ].join("\n");
     },
   },
@@ -763,18 +745,14 @@ const PROMPTS = {
   },
   "style-stats": {
     description: "Show corpus statistics for a styleforge author.",
-    arguments: [
-      { name: "slug", description: "Author slug.", required: false },
-    ],
-    build({ slug = "" }) {
+    arguments: [],
+    build() {
       return [
         "Show statistics for a styleforge author.",
         "",
-        "1. If slug is given, use it. Otherwise call `list_authors` and ask.",
+        "1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.",
         "2. Call `get_stats` for that slug.",
         "3. Present the result clearly: entry count, topic breakdown, pattern frequencies, and any sample_warning.",
-        "",
-        `slug: ${slug}`,
       ].join("\n");
     },
   },
@@ -846,8 +824,9 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
     await ensureRootExists();
     const transport = new StdioServerTransport();
     await server.connect(transport);
+    console.error("styleforge MCP server running on stdio");
   } catch (e) {
-    process.stderr.write(`styleforge fatal: ${e.message}\n`);
+    console.error(`styleforge fatal: ${e.stack || e.message}`);
     process.exit(1);
   }
 })();

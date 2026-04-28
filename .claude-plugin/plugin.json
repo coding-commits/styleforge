@@ -1,0 +1,8 @@
+{
+  "name": "styleforge",
+  "version": "0.2.1",
+  "description": "Per-author writing-style management. Maintain isolated writing-style libraries, ingest corpus, get writing guides, and write in any author's style.",
+  "author": {
+    "name": "styleforge"
+  }
+}

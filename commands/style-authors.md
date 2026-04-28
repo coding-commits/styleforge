@@ -1,3 +1,8 @@
-Call `list_authors` and present the results as a concise table (slug, display name).
+---
+description: List all registered styleforge authors
+allowed-tools: [Read, Bash]
+---
 
-$ARGUMENTS
+List all styleforge authors. Follow the styleforge skill instructions for the "List authors" operation.
+
+User's request: $ARGUMENTS
