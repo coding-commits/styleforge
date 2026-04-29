@@ -1,77 +1,89 @@
 # Styleforge
 
-**English** | [中文](README.zh-CN.md)
-
-Per-author **writing-style management** for any MCP client. Works with any language. One-click install (`.mcpb`), incremental corpus ingestion, full rollback support.
+Per-author **writing-style management** as a Claude Code plugin. Works with any language. Incremental corpus ingestion, full rollback support, auto-triggering skill.
 
 ## Install
 
-### Claude Desktop (`.mcpb` one-click)
-
 ```bash
-curl -L https://github.com/coding-commits/styleforge/releases/latest/download/styleforge.mcpb \
-  -o ~/Downloads/styleforge.mcpb && open ~/Downloads/styleforge.mcpb
+# 1. Add the styleforge marketplace
+claude plugin marketplace add coding-commits/styleforge
+
+# 2. Install the plugin
+claude plugin install styleforge
+
+# 3. Install server dependencies
+cd $(claude plugin list --json 2>/dev/null | grep -A2 styleforge | grep installPath | cut -d'"' -f4) && npm install
+
+# 4. Restart Claude Code (close and reopen terminal, or: claude --restart)
 ```
 
-(Windows: use PowerShell, then double-click the downloaded `.mcpb` file.)
+After restart you get:
 
-Claude Desktop will prompt to install. Slash commands (`/style-write`, etc.) work out of the box.
+- `/style-write` — Write in an author's style
+- `/style-ingest` — Ingest new corpus articles
+- `/style-feedback` — Digest feedback into learned-rules
+- `/style-rollback` — Interactive rollback to a previous snapshot
+- `/style-authors` — List all registered authors
+- `/style-stats` — Show corpus statistics
 
-### Claude Code / other MCP clients (npm)
+Plus an auto-triggering **skill** — just say "write like hbdxsl" or "ingest these articles" and Claude handles the rest.
 
-```bash
-npm install -g styleforge
-```
-
-This automatically:
-- Installs **slash commands** → `~/.claude/commands/style-*.md`
-- Prints the command to register the MCP server
-
-Then register:
+## Install from source
 
 ```bash
-styleforge setup   # shows the exact command, or:
-claude mcp add styleforge -- node $(npm root -g)/styleforge/server/index.js -e STYLEFORGE_HOME=~/.styleforge
-```
-
-### Common notes
-
-- **Data directory**: defaults to `~/.styleforge/`. Point it at a synced folder if you like — all corpus and snapshots live here.
-- To build from source:
-
-```bash
-git clone https://github.com/coding-commits/styleforge.git && cd styleforge
+git clone https://github.com/coding-commits/styleforge.git
+cd styleforge/plugins/styleforge
 npm install
-npx @anthropic-ai/mcpb pack .  # produces styleforge.mcpb for Claude Desktop
+cd ../..
+claude plugin marketplace add $(pwd)
+claude plugin install styleforge
 ```
 
 ## Usage
 
-Open your MCP client, start a new chat:
-
-**Write in an author's style**:
+**Write in an author's style:**
 ```
-/style-write hbdxsl Write a short essay about the Song dynasty
-```
-
-**Ingest new corpus**:
-```
-/style-ingest hbdxsl Add the files in ~/Documents/articles/
+/style-write
+> Write a short essay about the Song dynasty in hbdxsl's style
 ```
 
-**Process feedback**:
+**Ingest new corpus** (local file paths only):
 ```
-/style-feedback hbdxsl
-```
-
-**Roll back**:
-```
-/style-rollback hbdxsl
+/style-ingest
+> Ingest all .txt files in ~/Documents/hbdxsl-articles/
 ```
 
-Or use natural language: "List all styleforge authors", "Show stats for hbdxsl", etc.
+**Natural language** (skill auto-triggers):
+```
+Write like hbdxsl about modern education
+Show stats for hbdxsl
+List all styleforge authors
+```
 
-## Architecture
+## Repo Structure
+
+```
+styleforge/
+├── .claude-plugin/
+│   └── marketplace.json         # Marketplace definition
+├── README.md
+└── plugins/
+    └── styleforge/
+        ├── .claude-plugin/
+        │   └── plugin.json      # Plugin metadata
+        ├── .mcp.json            # Auto-registers MCP server
+        ├── commands/             # /style-* slash commands
+        ├── skills/
+        │   └── styleforge/
+        │       └── SKILL.md     # Auto-triggering skill
+        ├── server/
+        │   ├── index.js         # MCP server (17 tools, 6 prompts)
+        │   └── core/            # Business logic
+        ├── package.json
+        └── docs/
+```
+
+## How It Works
 
 ```
        ┌──────────────────────────┐
@@ -80,95 +92,55 @@ Or use natural language: "List all styleforge authors", "Show stats for hbdxsl",
                   │ MCP protocol (local stdio)
        ┌──────────▼───────────────┐
        │  styleforge MCP server   │
-       │   • tools (deterministic)│
-       │   • prompts (shortcuts)  │
+       │   • 17 tools             │
+       │   • 6 prompts            │
        └──────────┬───────────────┘
                   │
        ┌──────────▼───────────────┐
-       │   $STYLEFORGE_HOME       │
+       │   ~/.styleforge/         │
        │     authors/<slug>/      │
        └──────────────────────────┘
 ```
 
-The LLM handles what requires *understanding*: extracting style highlights, judging rule promotion, tagging topics.
-The server handles what must be *exact and persistent*: hashing, dedup, statistics, snapshots, changelog.
+- **LLM** handles understanding: extracting style patterns, judging rule promotion, tagging topics
+- **Server** handles persistence: hashing, dedup, statistics, snapshots, changelog
 
-## Capabilities
-
-**17 tools** (called by the LLM on demand):
+## Tools
 
 | Tool | Purpose |
 |---|---|
 | `list_authors` / `create_author` / `delete_author` | Author management |
-| `get_writing_guide` | **Core**: returns the full writing guide (SKILL_OVERLAY + style-patterns + learned-rules) |
-| `sample_corpus` | Topic-bucketed sampling of source texts |
-| `ingest_dryrun` / `ingest_execute` | Safe corpus ingestion (auto-dedup + snapshot + commit message) |
-| `record_pattern_evidence` / `append_observation` | Record topics & pattern IDs after reading ingested articles |
-| `recompute_stats` / `get_stats` | Frequency recomputation & display |
+| `get_writing_guide` | Full writing guide (overlay + patterns + rules) |
+| `sample_corpus` | Topic-bucketed sampling |
+| `ingest_dryrun` / `ingest_execute` | Safe ingestion (auto-dedup + snapshot) |
+| `record_pattern_evidence` / `append_observation` | Pattern annotation |
+| `recompute_stats` / `get_stats` | Statistics |
 | `create_snapshot` / `list_snapshots` / `rollback` | Snapshots & rollback |
-| `record_feedback` / `get_feedback_log` / `apply_learned_rule` | Feedback capture & digestion |
+| `record_feedback` / `get_feedback_log` / `apply_learned_rule` | Feedback loop |
 
-**7 slash commands** (MCP prompts):
+## Data
 
-- `/style-write` — Write in an author's style
-- `/style-ingest` — Ingest new corpus (always dry-runs first)
-- `/style-feedback` — Digest accumulated feedback into rules
-- `/style-rollback` — Interactive rollback to a previous snapshot
-- `/style-authors` — List all registered authors
-- `/style-stats` — Show corpus statistics for an author
-
-## Multi-author isolation
-
-Each author is a fully isolated data subtree:
+All data at `~/.styleforge/` (configurable via `$STYLEFORGE_HOME`). Each author is fully isolated:
 
 ```
-$STYLEFORGE_HOME/authors/
-├── hbdxsl/
-├── lubin/
-└── ...
+~/.styleforge/authors/hbdxsl/
+├── corpus/              # Source texts (append-only)
+├── corpus-index.json    # Hashes, topics, pattern evidence
+├── style-patterns.md    # Style rules with evidence counts
+├── observations.md      # Candidate patterns
+├── learned-rules.md     # Rules from feedback
+├── overlay.md           # Per-author preferences
+└── snapshots/           # Timestamped state snapshots
 ```
 
-Operations on author A never read or write author B's data.
-
-## Anti-drift mechanisms
-
-| Risk | Mitigation |
-|---|---|
-| New patterns overwrite old | Ingest is append-only; deletion requires explicit approval |
-| Corpus bias causes style drift | Bucketed sampling rotates across topics |
-| Rules accumulate into noise | Three-tier structure (core / secondary / observation), review triggered at threshold |
-| Statistical basis lost | Evidence counts recomputed from corpus-index.json |
-| No undo | Auto-snapshot before every write + changelog + rollback command |
-| Small-sample frequency misleading | Explicit `sample_warning` when corpus < 15 entries |
-
-## Accidental ingestion?
-
-```
-/style-rollback hbdxsl
-```
-
-The agent lists all historical snapshots (with timestamps and descriptive messages), then asks you which one to restore. A fresh snapshot is always taken before rollback, so "rollback the rollback" works.
-
-You can also inspect `$STYLEFORGE_HOME/authors/<slug>/snapshots/` manually.
-
-**Note**: rollback restores index files only — it does **not** delete files under `corpus/` (by design: source texts are treated as immutable raw material).
-
-## Build
+## Uninstall
 
 ```bash
-git clone https://github.com/coding-commits/styleforge.git
-cd styleforge
-npm install
-npm test                            # smoke test core modules
-npx @anthropic-ai/mcpb validate manifest.json
-npx @anthropic-ai/mcpb pack . styleforge.mcpb
+claude plugin uninstall styleforge
+claude plugin marketplace remove styleforge
 ```
 
-## Docs
-
-- [Architecture](docs/en/architecture.md)
-- [Adding an author](docs/en/adding-an-author.md)
-- [Troubleshooting](docs/en/troubleshooting.md)
+To also remove data: `rm -rf ~/.styleforge`
 
 ## License
 
