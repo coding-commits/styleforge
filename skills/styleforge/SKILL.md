@@ -1,7 +1,7 @@
 ---
 name: styleforge
 description: Use this skill when the user wants to "write in someone's style", "imitate an author", "use styleforge", manage writing-style authors, ingest corpus articles, check style stats, roll back style data, or mentions any /style-* command. Also trigger when the user says "write like X", "in the style of X", "style guide", "ingest these articles", "add to corpus", or references a styleforge author slug. This skill orchestrates the styleforge MCP tools for per-author writing-style management.
-version: 0.3.5
+version: 0.4.0
 ---
 
 # Styleforge — Writing-Style Management
@@ -14,11 +14,12 @@ Styleforge maintains per-author writing-style libraries via MCP tools. Each auth
 
 1. Call `list_authors`. If only one exists, use it. Otherwise ask which one.
 2. Call `get_writing_guide` for that slug — read the returned SKILL_OVERLAY + style-patterns + learned-rules carefully.
-3. Optionally call `sample_corpus` (k=2-3) for grounding examples.
+3. Call `sample_corpus` (k=5-8) to receive signature passages — short, context-agnostic style exemplars that demonstrate the author's syntax/rhythm/rhetoric without topical content. Use these to calibrate voice.
 4. Ask the user what to write (if they haven't already said).
-5. Draft the piece. Replicate STRUCTURE / SYNTAX / RHETORIC ONLY. Do NOT import the author's political stance unless the user explicitly requests it. The user's stated stance always wins.
+5. Draft the piece. Replicate STRUCTURE / SYNTAX / RHETORIC ONLY. Do NOT import the author's political stance unless the user explicitly requests it. The user's stated stance always wins. The signature passages inform HOW to write, not WHAT to write — never let their phrasing leak topical content into the output.
 6. Self-check against the §4 "failure modes" section of style-patterns.md.
-7. Deliver. Then briefly ask: "Satisfied? If not, tell me what's off and I'll log it via `record_feedback`."
+7. Call `save_draft` with the final text — this saves it as a `.md` file under the author's `drafts/` directory. Show the user the returned file path so they can retrieve it.
+8. Deliver. Then briefly ask: "Satisfied? If not, tell me what's off and I'll log it via `record_feedback`."
 
 ### Ingest new corpus (`/style-ingest`)
 
@@ -42,7 +43,7 @@ Styleforge maintains per-author writing-style libraries via MCP tools. Each auth
    - Do NOT ask for user approval here — proceed automatically.
 6. **Enrichment (parallel batched)**: Annotate ingested articles using parallel agents.
    - Split the ingested articles into batches of ≤3 articles. Each batch's combined word count must not exceed 100k words; if a single article exceeds 100k words, split it into shorter chunks that each fit within the limit.
-   - Launch one parallel agent per batch. Each agent reads its assigned articles and performs the analysis described in §Enrichment Analysis Framework below, then calls `record_pattern_evidence` and `append_observation` accordingly.
+   - Launch one parallel agent per batch. Each agent reads its assigned articles and performs the analysis described in §Enrichment Analysis Framework below, then calls `record_pattern_evidence`, `record_signature_passages`, and `append_observation` accordingly.
    - Wait for all batch agents to complete before proceeding.
 
 #### Enrichment Analysis Framework
@@ -73,6 +74,16 @@ Directly record any noteworthy n-gram via `append_observation` with the exact ph
 - 如果多篇文章呈现相似弧线模式，作为 pattern 记录
 
 Record arc patterns as observations with `candidate_id` prefix `arc.` (e.g. `arc.restrained-to-intense-to-calm`).
+
+**D. 签名段落 (Signature Passages)** — extract 3-5 short passages (≤120 chars each) per article that are **context-agnostic style exemplars**:
+
+- Each passage must demonstrate the author's syntax, rhythm, or rhetoric — NOT topical content.
+- **Method**: take an original sentence/passage that showcases a stylistic trait, then replace content-specific words (proper nouns, dates, domain terms, factual claims) with generic placeholders like `[人物]`, `[事件]`, `[概念]`, `[数字]`, `[地点]` etc. Keep the syntactic skeleton, punctuation rhythm, and rhetorical structure intact.
+- Example — original: `"说白了，李鸿章搞洋务不是因为他多爱国，是因为不搞就死。"` → signature passage: `"说白了，[人物]搞[事件]不是因为他多[形容词]，是因为不搞就[后果]。"`
+- Example — original: `"有意思的是，三百年后我们回头看，当时所有人都觉得理所当然的事，恰恰是最荒诞的。"` → signature passage: `"有意思的是，[时间]后我们回头看，当时所有人都觉得理所当然的事，恰恰是最[反转判断]的。"`
+- The resulting passage is a **style template**: it preserves the author's sentence-opening habit, clause rhythm, rhetorical twist, and punctuation pattern, while being reusable across any topic.
+- Call `record_signature_passages` once per entry with the extracted passages.
+
 7. Call `recompute_stats`.
 8. Report: ingested count, snapshot id, rollback hint.
 

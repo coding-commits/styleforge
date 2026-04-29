@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "styleforge",
   "display_name": "Styleforge",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Per-author writing-style management via MCP.",
   "long_description": "Maintain isolated writing-style libraries for one or more authors in any language. Ingest new corpus with deduplication and snapshots. Get on-demand writing guides via MCP tools and `/style-write` slash commands. Includes feedback intake and rollback for misingested corpus.",
   "author": {
@@ -52,7 +52,7 @@
     },
     {
       "name": "sample_corpus",
-      "description": "Return 1-5 corpus entries from an author, optionally filtered by topic. Bucketed sampling avoids over-representing any single topic."
+      "description": "Return signature passages from up to 10 corpus entries, bucketed by topic. Each passage is a short context-agnostic style exemplar (≤120 chars) demonstrating syntax/rhythm/rhetoric without content leakage."
     },
     {
       "name": "ingest_dryrun",
@@ -65,6 +65,10 @@
     {
       "name": "record_pattern_evidence",
       "description": "After viewing an ingested article, record its topic tags and which style-patterns it exhibits. This is how an author's style fingerprint accumulates."
+    },
+    {
+      "name": "record_signature_passages",
+      "description": "Store 3-5 context-agnostic style exemplar passages (≤120 chars each) for a corpus entry. Demonstrates syntax/rhythm/rhetoric without topical content. Called during enrichment."
     },
     {
       "name": "append_observation",
@@ -101,18 +105,22 @@
     {
       "name": "apply_learned_rule",
       "description": "After style-feedback skill negotiates a learned rule with the user, persist it to learned-rules.md. Requires user-confirmed rule text."
+    },
+    {
+      "name": "save_draft",
+      "description": "Save a style-write draft as a .md file under the author's drafts/ directory. Returns the absolute file path."
     }
   ],
   "prompts": [
     {
       "name": "style-write",
       "description": "Write or rewrite a piece in a specific author's style.",
-      "text": "I want you to write in the style of a specific styleforge author.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.\n2. Call `get_writing_guide` for that slug. Read the returned guide carefully.\n3. Optionally call `sample_corpus` (k=2-3) for grounding examples.\n4. Ask the user what they want written (if they haven't already said).\n5. Draft the piece. Replicate STRUCTURE / SYNTAX / RHETORIC ONLY. Do NOT import the author's political stance unless explicitly requested. The user's stated stance always wins.\n6. Self-check against the §4 \"failure modes\" section of style-patterns.md.\n7. Deliver. Then briefly ask: \"Satisfied? If not, tell me what's off and I'll log it via record_feedback.\""
+      "text": "I want you to write in the style of a specific styleforge author.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.\n2. Call `get_writing_guide` for that slug. Read the returned guide carefully.\n3. Call `sample_corpus` (k=5-8) — returns signature passages: short, context-agnostic style exemplars showing syntax/rhythm/rhetoric. Use these to calibrate voice.\n4. Ask the user what they want written (if they haven't already said).\n5. Draft the piece. Replicate STRUCTURE / SYNTAX / RHETORIC ONLY. Do NOT import the author's political stance unless explicitly requested. The user's stated stance always wins. Signature passages inform HOW to write, not WHAT to write — never leak their content into the output.\n6. Self-check against the §4 \"failure modes\" section of style-patterns.md.\n7. Call `save_draft` with the final text. Show the user the returned file path.\n8. Deliver. Then briefly ask: \"Satisfied? If not, tell me what's off and I'll log it via record_feedback.\""
     },
     {
       "name": "style-ingest",
       "description": "Ingest new articles into an author's corpus. Provide local file paths.",
-      "text": "Ingest articles into a styleforge author's corpus.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Ask for local file paths on the user's machine. Files must be accessible from the local filesystem.\n3. Call `ingest_dryrun`. Show: new_files / exact_duplicates / near_duplicates. If near-dups, ask: (a) treat as new, (b) skip, (c) cancel.\n4. After confirmation, call `ingest_execute` with a descriptive `message` parameter.\n5. Ingest Plan: display a summary showing total articles to annotate, batch layout (groups of <=3 articles, <=100k words per batch, split long ones into shorter chunks), then proceed automatically without asking for approval.\n6. Enrichment (parallel batched): launch one parallel agent per batch (<=3 articles each). Each agent reads its articles and analyzes along 3 dimensions: (A) multi-layer patterns (syntax/rhetoric/structure/register/rhythm), (B) n-gram fingerprints (recurring phrases, sentence starters, catchphrases — record directly, no cross-article threshold), (C) emotional arc (tonal trajectory mapping). Calls `record_pattern_evidence` with topics + pattern_ids. Novel patterns go through `append_observation`. Wait for all agents to complete.\n7. Call `recompute_stats`.\n8. Report: ingested count, snapshot id, rollback hint."
+      "text": "Ingest articles into a styleforge author's corpus.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Ask for local file paths on the user's machine. Files must be accessible from the local filesystem.\n3. Call `ingest_dryrun`. Show: new_files / exact_duplicates / near_duplicates. If near-dups, ask: (a) treat as new, (b) skip, (c) cancel.\n4. After confirmation, call `ingest_execute` with a descriptive `message` parameter.\n5. Ingest Plan: display a summary showing total articles to annotate, batch layout (groups of <=3 articles, <=100k words per batch, split long ones into shorter chunks), then proceed automatically without asking for approval.\n6. Enrichment (parallel batched): launch one parallel agent per batch (<=3 articles each). Each agent reads its articles and performs: (A) multi-layer patterns (syntax/rhetoric/structure/register/rhythm), (B) n-gram fingerprints (recurring phrases, sentence starters, catchphrases — record directly, no cross-article threshold), (C) emotional arc (tonal trajectory mapping), (D) signature passages — extract 3-5 short (≤120 char) context-agnostic passages per article that demonstrate the author's syntax/rhythm/rhetoric WITHOUT topical content (strip proper nouns, dates, domain references). Calls `record_pattern_evidence`, `record_signature_passages`, and `append_observation`. Wait for all agents to complete.\n7. Call `recompute_stats`.\n8. Report: ingested count, snapshot id, rollback hint."
     },
     {
       "name": "style-feedback",
@@ -133,6 +141,11 @@
       "name": "style-stats",
       "description": "Show corpus statistics for a styleforge author.",
       "text": "Show statistics for a styleforge author.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Call `get_stats`.\n3. Present: entry count, topic breakdown, pattern frequencies, sample_warning if applicable."
+    },
+    {
+      "name": "style-help",
+      "description": "Show the styleforge user guide — from ingestion to writing to feedback.",
+      "text": "Print the styleforge user guide directly to the user. Do NOT call any MCP tools. Cover: create author, ingest corpus (with signature passages), write (auto-saves .md), feedback/learned-rules, stats, rollback. List all /style-* commands in a table."
     }
   ],
   "compatibility": {

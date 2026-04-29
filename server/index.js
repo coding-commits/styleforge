@@ -2,18 +2,19 @@
 /**
  * styleforge MCP server
  *
- * Exposes 16 tools + 3 prompts that an agent uses to maintain per-author
+ * Exposes 19 tools + 7 prompts that an agent uses to maintain per-author
  * writing-style libraries (any language):
  *
  *   - list_authors / create_author / delete_author
  *   - get_writing_guide                        (the "skill content" — fetched on demand)
  *   - sample_corpus
- *   - ingest_dryrun / ingest_execute / record_pattern_evidence
+ *   - ingest_dryrun / ingest_execute / record_pattern_evidence / record_signature_passages
  *   - recompute_stats / get_stats
  *   - create_snapshot / list_snapshots / rollback
  *   - record_feedback / get_feedback_log / apply_learned_rule
+ *   - save_draft
  *
- *   - prompts: style-write / style-ingest / style-feedback (slash-command shortcuts)
+ *   - prompts: style-write / style-ingest / style-feedback / style-help (slash-command shortcuts)
  *
  * Data location: $STYLEFORGE_HOME (set from manifest user_config.data_dir),
  * or ~/.styleforge as fallback.
@@ -180,13 +181,13 @@ const TOOLS = [
   },
   {
     name: "sample_corpus",
-    description: "Return up to 5 representative entries from an author's corpus. Bucketed sampling avoids over-representing any single topic. Call after get_writing_guide if you want concrete examples.",
+    description: "Return signature passages from up to 10 corpus entries, bucketed by topic. Each passage is a short context-agnostic style exemplar (≤120 chars) that demonstrates syntax/rhythm/rhetoric without leaking content. Call after get_writing_guide to calibrate voice before writing.",
     inputSchema: {
       type: "object",
       properties: {
         slug: { type: "string" },
         topic: { type: "string", description: "Optional topic tag to prefer." },
-        k: { type: "integer", minimum: 1, maximum: 5, default: 3 },
+        k: { type: "integer", minimum: 1, maximum: 10, default: 5 },
       },
       required: ["slug"],
       additionalProperties: false,
@@ -237,6 +238,26 @@ const TOOLS = [
         pattern_ids: { type: "array", items: { type: "string" }, default: [] },
       },
       required: ["slug", "entry_id"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "record_signature_passages",
+    description: "Store 3-5 context-agnostic style exemplar passages for a corpus entry. Each passage (≤120 chars) is created by taking an original sentence, replacing content words with placeholders like [人物]/[事件]/[概念], keeping the syntactic skeleton and punctuation rhythm intact. This produces style templates that calibrate voice without contaminating new writing. Called during enrichment, once per entry.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string" },
+        entry_id: { type: "string", description: "Entry id from ingest result." },
+        passages: {
+          type: "array",
+          items: { type: "string", maxLength: 120 },
+          minItems: 1,
+          maxItems: 5,
+          description: "Short passages that showcase style (syntax/rhythm/rhetoric), NOT content. Must be context-agnostic.",
+        },
+      },
+      required: ["slug", "entry_id", "passages"],
       additionalProperties: false,
     },
   },
@@ -356,6 +377,20 @@ const TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: "save_draft",
+    description: "Save a style-write draft to the author's drafts/ directory as a .md file. Returns the absolute file path so the user can retrieve it. Called automatically at the end of every style-write.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slug: { type: "string" },
+        content: { type: "string", description: "The full markdown content of the draft." },
+        title: { type: "string", description: "Short title for the filename (optional, defaults to timestamp)." },
+      },
+      required: ["slug", "content"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -469,23 +504,20 @@ When writing in this author's style:
     );
   },
 
-  async sample_corpus({ slug, topic = null, k = 3 }) {
+  async sample_corpus({ slug, topic = null, k = 5 }) {
     ensureSlug(slug);
     if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
     const paths = new AuthorPaths(slug);
     const entries = await bucketedSample(paths, { topic, k });
-    // Strip simhashes (huge, irrelevant for the agent's reading) but include
-    // source_path so the agent can `view` the file.
+    // Return signature passages inline — no need to read full files.
+    // Entries without passages yet are included with an empty array.
     const slim = entries.map((e) => ({
       entry_id: e.entry_id,
       title: e.title,
-      source_path: path.join(paths.base, e.source_path),
-      char_count: e.char_count,
       topics: e.topics,
-      pattern_ids: e.pattern_ids,
-      weight: e.weight,
+      signature_passages: e.signature_passages || [],
     }));
-    return ok({ samples: slim, root: paths.base });
+    return ok({ samples: slim });
   },
 
   async ingest_dryrun({ slug, files, threshold = 6 }) {
@@ -536,6 +568,25 @@ When writing in this author's style:
         details: { entry_id, topics, pattern_ids },
       });
       return ok({ updated: { entry_id, topics: entry.topics, pattern_ids: entry.pattern_ids } });
+    });
+  },
+
+  async record_signature_passages({ slug, entry_id, passages }) {
+    ensureSlug(slug);
+    if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
+    return withAuthorLock(slug, async () => {
+      const paths = new AuthorPaths(slug);
+      const index = await loadIndex(paths.corpusIndex);
+      const entry = index.entries.find((e) => e.entry_id === entry_id);
+      if (!entry) return err(`entry ${entry_id} not found in corpus`);
+      // Truncate each passage to 120 chars, dedupe.
+      const trimmed = [...new Set(passages.map((p) => p.trim().slice(0, 120)))];
+      entry.signature_passages = trimmed;
+      await saveIndex(paths.corpusIndex, index);
+      await logAction(paths, "record_signature_passages", {
+        details: { entry_id, count: trimmed.length },
+      });
+      return ok({ updated: { entry_id, signature_passages: trimmed } });
     });
   },
 
@@ -704,6 +755,28 @@ When writing in this author's style:
     });
     return ok({ applied: rule_id, snapshot: snap.name });
   },
+
+  async save_draft({ slug, content, title = "" }) {
+    ensureSlug(slug);
+    if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
+    const paths = new AuthorPaths(slug);
+    await fs.mkdir(paths.draftsDir, { recursive: true });
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const safeName = title
+      ? title.trim().replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g, "_").slice(0, 60)
+      : ts;
+    const filename = `${safeName}.md`;
+    let dest = path.join(paths.draftsDir, filename);
+    // Disambiguate if exists.
+    let i = 2;
+    while (true) {
+      try { await fs.access(dest); dest = path.join(paths.draftsDir, `${safeName}-${i}.md`); i++; }
+      catch { break; }
+    }
+    await fs.writeFile(dest, content, "utf-8");
+    await logAction(paths, "save_draft", { details: { path: dest } });
+    return ok({ saved: dest });
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -726,13 +799,16 @@ const PROMPTS = {
         "",
         "1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.",
         "2. Call `get_writing_guide` for that slug. Read the returned guide carefully.",
-        "3. Optionally call `sample_corpus` (k=2-3) for grounding examples.",
+        "3. Call `sample_corpus` (k=5-8) — returns signature passages: short, context-agnostic",
+        "   style exemplars showing syntax/rhythm/rhetoric. Use these to calibrate voice.",
         "4. Ask the user what they want written (if they haven't already said).",
         "5. Draft the piece. Strict rule: replicate STRUCTURE / SYNTAX / RHETORIC ONLY.",
         "   Do NOT import the author's political stance into a topic the user did not ask for.",
-        "   The user's stated stance always wins.",
+        "   The user's stated stance always wins. Signature passages inform HOW to write,",
+        "   not WHAT to write — never leak their content into the output.",
         "6. Self-check against the §4 'failure modes' section of style-patterns.md.",
-        "7. Deliver. Then briefly: \"Satisfied? If not, tell me what's off and I'll log it via record_feedback.\"",
+        "7. Call `save_draft` with the final text. Show the user the returned file path.",
+        "8. Deliver. Then briefly: \"Satisfied? If not, tell me what's off and I'll log it via record_feedback.\"",
       ].join("\n");
     },
   },
@@ -752,10 +828,13 @@ const PROMPTS = {
         "5. After confirmation, call `ingest_execute`. **Important**: pass a `message` parameter",
         "   summarizing what was ingested (e.g. 'ingest 3 articles about Song dynasty history').",
         "   This message is stored with the snapshot so the user can identify it later during rollback.",
-        "6. **Enrichment (critical)**: for each new entry, view the source file, then call",
-        "   `record_pattern_evidence` with topics + pattern_ids. Pull pattern_ids from the",
-        "   author's existing style-patterns.md (call `get_writing_guide`). Novel patterns",
-        "   go through `append_observation`, not record_pattern_evidence.",
+        "6. **Enrichment (critical)**: for each new entry, view the source file, then:",
+        "   a. Call `record_pattern_evidence` with topics + pattern_ids. Pull pattern_ids from the",
+        "      author's existing style-patterns.md (call `get_writing_guide`). Novel patterns",
+        "      go through `append_observation`, not record_pattern_evidence.",
+        "   b. Call `record_signature_passages` with 3-5 short (≤120 char) context-agnostic passages",
+        "      that demonstrate the author's syntax/rhythm/rhetoric WITHOUT topical content.",
+        "      Strip proper nouns, dates, domain references — keep only the stylistic skeleton.",
         "7. Call `recompute_stats`.",
         "8. Report: ingested count, snapshot id, rollback hint.",
       ].join("\n");
@@ -820,6 +899,60 @@ const PROMPTS = {
         "1. Call `list_authors`. If there's only one, use it. Otherwise ask which one.",
         "2. Call `get_stats` for that slug.",
         "3. Present the result clearly: entry count, topic breakdown, pattern frequencies, and any sample_warning.",
+      ].join("\n");
+    },
+  },
+  "style-help": {
+    description: "Show the styleforge user guide — from ingestion to writing to feedback.",
+    arguments: [],
+    build() {
+      return [
+        "Print the following user guide directly to the user. Do NOT call any MCP tools.",
+        "",
+        "# Styleforge — User Guide",
+        "",
+        "Styleforge clones an author's **writing style** (syntax, rhythm, rhetoric) and applies it to any new topic.",
+        "",
+        "## Workflow",
+        "",
+        "```",
+        "Create author → Ingest corpus → Write → Feedback → Iterate",
+        "```",
+        "",
+        "### 1. Create an author",
+        "Run `/style-authors` to check existing authors. To create one, just say: \"create a styleforge author called 张三\".",
+        "",
+        "### 2. Ingest corpus (`/style-ingest`)",
+        "Provide local file paths. Each article is:",
+        "- Deduplicated (SHA-256 exact + SimHash near-duplicate detection)",
+        "- Analyzed across five layers: syntax, rhetoric, structure, register, rhythm",
+        "- Extracted into **signature passages** — style templates with content words replaced by placeholders like `[人物]`, `[事件]`, `[概念]`",
+        "",
+        "Tip: ingest 10-15+ articles for statistically meaningful patterns.",
+        "",
+        "### 3. Write (`/style-write <topic>`)",
+        "The writing guide + signature passages calibrate voice. Only **how** the author writes is transferred, never **what** they think.",
+        "Drafts are auto-saved as `.md` files in `~/.styleforge/authors/<slug>/drafts/` — the path is shown after every write.",
+        "",
+        "### 4. Feedback (`/style-feedback`)",
+        "After a write, say what's off. The agent logs it. When feedback accumulates, `/style-feedback` groups issues into learned rules you approve individually.",
+        "",
+        "### 5. Stats (`/style-stats`) & Rollback (`/style-rollback`)",
+        "Check corpus health. Every mutation snapshots state first — rollback-of-rollback works.",
+        "",
+        "## Commands",
+        "",
+        "| Command | Description |",
+        "|---------|-------------|",
+        "| `/style-help` | This guide |",
+        "| `/style-authors` | List registered authors |",
+        "| `/style-ingest` | Ingest articles into corpus |",
+        "| `/style-write` | Write in an author's style (auto-saves .md) |",
+        "| `/style-feedback` | Digest feedback into learned rules |",
+        "| `/style-stats` | Corpus statistics |",
+        "| `/style-rollback` | Restore a snapshot |",
+        "",
+        "Data lives under `~/.styleforge/` (or `$STYLEFORGE_HOME`). Each author is fully isolated.",
       ].join("\n");
     },
   },

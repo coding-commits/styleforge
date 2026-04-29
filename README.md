@@ -46,7 +46,8 @@ Then restart Claude Code.
 
 After install you get:
 
-- `/style-write` — Write in an author's style
+- `/style-help` — Full user guide (start here)
+- `/style-write` — Write in an author's style (auto-saves draft as `.md`)
 - `/style-ingest` — Ingest new corpus articles
 - `/style-feedback` — Digest feedback into learned-rules
 - `/style-rollback` — Interactive rollback to a previous snapshot
@@ -57,17 +58,21 @@ Plus an auto-triggering **skill** — just say "write like hbdxsl" or "ingest th
 
 ## Usage
 
+**First time?** Run `/style-help` for the full walkthrough.
+
 **Write in an author's style:**
 ```
 /style-write
 > Write a short essay about the Song dynasty in hbdxsl's style
 ```
+Drafts are auto-saved to `~/.styleforge/authors/<slug>/drafts/` — the path is shown after every write.
 
 **Ingest new corpus** (local file paths only):
 ```
 /style-ingest
 > Ingest all .txt files in ~/Documents/hbdxsl-articles/
 ```
+During enrichment, each article also produces **signature passages** — short style templates with content words replaced by placeholders (e.g. `[人物]`, `[事件]`), preserving only the syntactic skeleton. These power efficient style calibration during `/style-write`.
 
 **Natural language** (skill auto-triggers):
 ```
@@ -88,7 +93,7 @@ styleforge/
 │   └── styleforge/
 │       └── SKILL.md        # Auto-triggering skill
 ├── server/
-│   ├── index.js            # MCP server (17 tools, 6 prompts)
+│   ├── index.js            # MCP server (19 tools, 7 prompts)
 │   └── core/               # Business logic
 ├── package.json
 └── docs/
@@ -103,8 +108,7 @@ styleforge/
                   │ MCP protocol (local stdio)
        ┌──────────▼───────────────┐
        │  styleforge MCP server   │
-       │   • 17 tools             │
-       │   • 6 prompts            │
+       │   • 19 tools, 7 prompts  │
        └──────────┬───────────────┘
                   │
        ┌──────────▼───────────────┐
@@ -122,12 +126,13 @@ styleforge/
 |---|---|
 | `list_authors` / `create_author` / `delete_author` | Author management |
 | `get_writing_guide` | Full writing guide (overlay + patterns + rules) |
-| `sample_corpus` | Topic-bucketed sampling |
+| `sample_corpus` | Signature passages from topic-bucketed entries |
 | `ingest_dryrun` / `ingest_execute` | Safe ingestion (auto-dedup + snapshot) |
-| `record_pattern_evidence` / `append_observation` | Pattern annotation |
+| `record_pattern_evidence` / `record_signature_passages` / `append_observation` | Pattern & style annotation |
 | `recompute_stats` / `get_stats` | Statistics |
 | `create_snapshot` / `list_snapshots` / `rollback` | Snapshots & rollback |
 | `record_feedback` / `get_feedback_log` / `apply_learned_rule` | Feedback loop |
+| `save_draft` | Auto-save style-write output as `.md` |
 
 ## Data
 
@@ -136,11 +141,12 @@ All data at `~/.styleforge/` (configurable via `$STYLEFORGE_HOME`). Each author 
 ```
 ~/.styleforge/authors/hbdxsl/
 ├── corpus/              # Source texts (append-only)
-├── corpus-index.json    # Hashes, topics, pattern evidence
+├── corpus-index.json    # Hashes, topics, pattern evidence, signature passages
 ├── style-patterns.md    # Style rules with evidence counts
 ├── observations.md      # Candidate patterns
 ├── learned-rules.md     # Rules from feedback
 ├── overlay.md           # Per-author preferences
+├── drafts/              # Auto-saved style-write output (.md files)
 └── snapshots/           # Timestamped state snapshots
 ```
 

@@ -65,6 +65,9 @@ export class AuthorPaths {
   get feedbackLog()   { return path.join(this.base, "feedback", "log.md"); }
   get learnedRules()  { return path.join(this.base, "feedback", "learned-rules.md"); }
 
+  // drafts (style-write output)
+  get draftsDir()     { return path.join(this.base, "drafts"); }
+
   // snapshots
   get snapshotsDir()  { return path.join(this.base, "snapshots"); }
 }
@@ -122,6 +125,7 @@ export async function createAuthor({ slug, displayName, description = "", root }
     paths.examplesGood,
     paths.examplesBad,
     path.dirname(paths.feedbackLog),
+    paths.draftsDir,
     paths.snapshotsDir,
   ]) {
     await fs.mkdir(d, { recursive: true });

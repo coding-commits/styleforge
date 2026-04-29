@@ -16,6 +16,7 @@ import { readJson, writeJsonAtomic } from "../io/atomic.js";
  *   simhashes: string[],        // BigInt encoded as decimal strings
  *   topics: string[],
  *   pattern_ids: string[],
+ *   signature_passages: string[], // context-agnostic style exemplars (≤120 chars each)
  *   weight: number,
  *   ingested_at: string,        // ISO
  *   notes: string
