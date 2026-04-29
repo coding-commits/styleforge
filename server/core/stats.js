@@ -83,14 +83,20 @@ async function regenerateStylePatterns(paths, stats) {
   secondary.sort(byFreqDesc);
   lowFreq.sort(byFreqDesc);
 
+  function randomPick(arr) {
+    if (arr.length === 0) return null;
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
   function formatTier(entries) {
     if (entries.length === 0) return "_(尚无)_\n";
     return entries.map((e) => {
       const pct = Math.round(e.frequency * 100);
       const obs = obsMap.get(e.pattern_id);
-      const desc = obs ? obs.description : e.pattern_id;
-      const example = obs && obs.example ? `\n  - 例: ${obs.example}` : "";
-      return `### ${e.pattern_id}\n- 频次: ${pct}% (${e.count}/${e.total} 篇)${example}\n- ${desc}\n`;
+      const desc = obs ? randomPick(obs.descriptions) || e.pattern_id : e.pattern_id;
+      const example = obs ? randomPick(obs.examples) : null;
+      const exLine = example ? `\n  - 例: ${example}` : "";
+      return `### ${e.pattern_id}\n- 频次: ${pct}% (${e.count}/${e.total} 篇)${exLine}\n- ${desc}\n`;
     }).join("\n");
   }
 
@@ -123,7 +129,8 @@ async function regenerateStylePatterns(paths, stats) {
 }
 
 /**
- * Parse observations.md into a Map<pattern_id, {description, example}>.
+ * Parse observations.md into a Map<pattern_id, {descriptions: string[], examples: string[]}>.
+ * Collects ALL observations for each pattern_id (does not overwrite).
  * Handles both well-formatted (## on its own line) and malformed
  * (## concatenated with previous line's timestamp) observations.
  */
@@ -142,7 +149,11 @@ function parseObservations(text) {
       const ex = line.match(/^- 例:\s*(.+)/);
       if (ex) { example = ex[1]; continue; }
     }
-    if (id) map.set(id, { description, example });
+    if (!id) continue;
+    if (!map.has(id)) map.set(id, { descriptions: [], examples: [] });
+    const entry = map.get(id);
+    if (description) entry.descriptions.push(description);
+    if (example) entry.examples.push(example);
   }
   return map;
 }
