@@ -68,7 +68,7 @@
     },
     {
       "name": "append_observation",
-      "description": "Append a candidate-pattern observation to observations.md. Use for novel patterns spotted in a single article that aren't yet in the rule catalog. Stays as observation until cross-corpus stability earns promotion."
+      "description": "Append a pattern observation to observations.md. For patterns spotted in an article that aren't yet in style-patterns.md. Once recorded and referenced in record_pattern_evidence, they appear in style-patterns.md on next recompute_stats."
     },
     {
       "name": "recompute_stats",

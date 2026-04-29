@@ -111,4 +111,4 @@ Call `list_authors`, present as a concise table (slug, display name).
 - The MCP server stores data at `$STYLEFORGE_HOME` (default `~/.styleforge/`).
 - Each author is fully isolated — operations on one never touch another.
 - Snapshots are automatic before every write operation. Rollback-of-rollback works.
-- When corpus is small (< 15 entries), all rules are "candidate" — frequencies are not statistically meaningful yet.
+- When corpus is small (< 15 entries), frequencies are not statistically meaningful yet — treat all patterns as tentative.

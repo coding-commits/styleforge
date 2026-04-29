@@ -242,7 +242,7 @@ const TOOLS = [
   },
   {
     name: "append_observation",
-    description: "Append a candidate-pattern observation to observations.md. For novel patterns spotted in a single article that aren't yet in the rule catalog. Stays as observation until cross-corpus stability earns it promotion.",
+    description: "Append a pattern observation to observations.md. For patterns spotted in an article that aren't yet in style-patterns.md. Once recorded and referenced in record_pattern_evidence, they appear in style-patterns.md on next recompute_stats.",
     inputSchema: {
       type: "object",
       properties: {
@@ -427,7 +427,7 @@ When writing in this author's style:
 1. Replicate STRUCTURE / SYNTAX / RHETORIC ONLY. Do NOT import the author's
    political stance unless the user explicitly asks. The user's stated
    stance always wins.
-2. Be wary of any rule labeled "candidate" — frequencies based on small
+2. Be wary of low-frequency patterns — frequencies based on small
    corpora (under ~15 articles) are not statistically meaningful yet.
 3. Respect density guidance (em-dashes, colloquial inserts) — don't apply
    every rule on every paragraph.
@@ -456,7 +456,7 @@ When writing in this author's style:
         "",
         "---",
         "",
-        "## observations.md (candidates, not yet promoted)",
+        "## observations.md (pattern descriptions & examples)",
         "",
         observations.trim() || "_(empty)_",
         "",
@@ -549,7 +549,6 @@ When writing in this author's style:
       `- 描述: ${description}`,
       example ? `- 例: ${example.trim().slice(0, 80)}` : null,
       `- 出处: ${entry_id}`,
-      `- 状态: candidate`,
       `- 添加于: ${stamp}`,
       "",
     ].filter(Boolean).join("\n");
@@ -595,7 +594,7 @@ When writing in this author's style:
       }
     }
     const sampleWarning = index.entries.length < 15
-      ? `corpus has only ${index.entries.length} entries — pattern frequencies are not yet statistically meaningful (rule of thumb: need 15+ entries before treating frequencies as anything other than candidate observations).`
+      ? `corpus has only ${index.entries.length} entries — pattern frequencies are not yet statistically meaningful (rule of thumb: need 15+ entries for reliable frequency data).`
       : null;
     return ok({
       author: meta.display_name,

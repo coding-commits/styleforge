@@ -138,7 +138,7 @@ export async function createAuthor({ slug, displayName, description = "", root }
     paths.stylePatterns,
     `# ${displayName} · 风格规则\n\n` +
       "本文件由 styleforge 维护。每条规则附证据计数,基于 corpus-index.json 重算。\n" +
-      "新规则只能通过固化评审升格,日常 ingest 只追加观察。\n\n" +
+      "规则频次由 recompute_stats 从 corpus-index.json 自动计算。\n\n" +
       "## 0. 文风 ≠ 立场\n\n" +
       "仅复刻写作骨架与笔法,不复刻作者的政治观点或史观。用户当次给定的立场优先。\n\n" +
       "## 1. 候选核心规则(>=70% 频次)\n\n_(待累积更多语料)_\n\n" +
@@ -150,7 +150,7 @@ export async function createAuthor({ slug, displayName, description = "", root }
   await writeTextAtomic(
     paths.observations,
     `# ${displayName} · 观察日志\n\n` +
-      "未升格为规则的现象记录在这里。每条带 [出现于: N/M 篇]。\n\n",
+      "模式观察记录。描述和例句供 style-patterns.md 生成时引用。\n\n",
   );
 
   await writeTextAtomic(

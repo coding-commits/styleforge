@@ -104,7 +104,7 @@ async function regenerateStylePatterns(paths, stats) {
     `# ${authorName} · 风格规则`,
     "",
     "本文件由 styleforge 维护。每条规则附证据计数,基于 corpus-index.json 重算。",
-    "新规则只能通过固化评审升格,日常 ingest 只追加观察。",
+    "规则频次由 recompute_stats 从 corpus-index.json 自动计算。",
     "",
     "## 0. 文风 ≠ 立场",
     "",
