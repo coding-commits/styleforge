@@ -174,7 +174,7 @@ function extractSection(text, headingPrefix) {
   return body.trim();
 }
 
-export async function bucketedSample(paths, { topic = null, k = 3, seed = null } = {}) {
+export async function bucketedSample(paths, { topic = null, k = 5, seed = null } = {}) {
   const index = await loadIndex(paths.corpusIndex);
   const entries = index.entries.slice();
   if (entries.length === 0) return [];
