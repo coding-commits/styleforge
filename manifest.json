@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "styleforge",
   "display_name": "Styleforge",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Per-author writing-style management via MCP.",
   "long_description": "Maintain isolated writing-style libraries for one or more authors in any language. Ingest new corpus with deduplication and snapshots. Get on-demand writing guides via MCP tools and `/style-write` slash commands. Includes feedback intake and rollback for misingested corpus.",
   "author": {
