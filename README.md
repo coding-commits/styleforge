@@ -5,14 +5,18 @@ Per-author **writing-style management** as a Claude Code plugin. Works with any 
 ## Install
 
 ```bash
-# From GitHub
-claude plugin add coding-commits/styleforge
-
-# Or from a local clone
-git clone https://github.com/coding-commits/styleforge.git
-cd styleforge
-claude plugin add $(pwd)
+claude plugin marketplace add coding-commits/styleforge
+claude plugin install styleforge
 ```
+
+## Upgrade
+
+```bash
+claude plugin marketplace update styleforge
+claude plugin update styleforge
+```
+
+Then restart Claude Code (close and reopen your terminal).
 
 After install you get:
 
