@@ -85,6 +85,52 @@ function ensureSlug(slug) {
   }
 }
 
+/**
+ * Re-sample examples in style-patterns.md text using observations.md.
+ * Replaces each "  - 例: ..." line with a randomly picked example from
+ * all observations for that pattern_id.
+ */
+function resampleExamples(stylePatternsText, observationsText) {
+  if (!observationsText) return stylePatternsText;
+
+  // Parse observations into Map<pattern_id, examples[]>
+  const obsExamples = new Map();
+  const sections = observationsText.split(/(?:^|\n)## |(?<=\S)## /).slice(1);
+  for (const section of sections) {
+    const lines = section.split("\n");
+    const id = lines[0].trim();
+    if (!id) continue;
+    for (const line of lines.slice(1)) {
+      const ex = line.match(/^- 例:\s*(.+)/);
+      if (ex) {
+        if (!obsExamples.has(id)) obsExamples.set(id, []);
+        obsExamples.get(id).push(ex[1]);
+      }
+    }
+  }
+
+  if (obsExamples.size === 0) return stylePatternsText;
+
+  // Replace example lines in style-patterns with freshly sampled ones
+  let currentPattern = null;
+  const outputLines = [];
+  for (const line of stylePatternsText.split("\n")) {
+    const headingMatch = line.match(/^### (.+)/);
+    if (headingMatch) {
+      currentPattern = headingMatch[1].trim();
+    }
+    const exMatch = line.match(/^(\s+- 例:\s*).+/);
+    if (exMatch && currentPattern && obsExamples.has(currentPattern)) {
+      const examples = obsExamples.get(currentPattern);
+      const picked = examples[Math.floor(Math.random() * examples.length)];
+      outputLines.push(`${exMatch[1]}${picked}`);
+    } else {
+      outputLines.push(line);
+    }
+  }
+  return outputLines.join("\n");
+}
+
 // ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
@@ -366,9 +412,12 @@ const handlers = {
     const paths = new AuthorPaths(slug);
 
     const overlay = (await readText(paths.overlay)) ?? "";
-    const stylePatterns = (await readText(paths.stylePatterns)) ?? "";
+    const stylePatternsRaw = (await readText(paths.stylePatterns)) ?? "";
     const learned = (await readText(paths.learnedRules)) ?? "";
     const observations = (await readText(paths.observations)) ?? "";
+
+    // Re-sample examples from observations on each read
+    const stylePatterns = resampleExamples(stylePatternsRaw, observations);
 
     const protocol = `
 # Protocol reminder (from styleforge)
