@@ -42,8 +42,37 @@ Styleforge maintains per-author writing-style libraries via MCP tools. Each auth
    - Do NOT ask for user approval here — proceed automatically.
 6. **Enrichment (parallel batched)**: Annotate ingested articles using parallel agents.
    - Split the ingested articles into batches of ≤3 articles. Each batch's combined word count must not exceed 100k words; if a single article exceeds 100k words, split it into shorter chunks that each fit within the limit.
-   - Launch one parallel agent per batch. Each agent reads its assigned articles and calls `record_pattern_evidence` (topics + pattern_ids from the author's style-patterns.md catalog) for each article. Novel patterns go through `append_observation`.
+   - Launch one parallel agent per batch. Each agent reads its assigned articles and performs the analysis described in §Enrichment Analysis Framework below, then calls `record_pattern_evidence` and `append_observation` accordingly.
    - Wait for all batch agents to complete before proceeding.
+
+#### Enrichment Analysis Framework
+
+Each agent MUST analyze articles along the following dimensions. Match findings against existing `style-patterns.md` entries (→ `record_pattern_evidence`). Novel findings not in the catalog → `append_observation`.
+
+**A. 多维度模式提取** — examine each article across these layers:
+
+| Layer | What to look for |
+|-------|-----------------|
+| 句法 (Syntax) | 句长分布、从句嵌套深度、主语省略频率、标点节奏（逗号密度、破折号/括号使用） |
+| 修辞 (Rhetoric) | 比喻类型、反问、排比、引用手法（典故/数据/权威）、夹叙夹议比例 |
+| 结构 (Structure) | 开头模式（悬念/观点先行/场景切入）、段落推进逻辑（并列/递进/转折）、收尾手法 |
+| 语域 (Register) | 口语插入频率、文白混用程度、术语密度、读者称呼方式 |
+| 节奏 (Rhythm) | 长短句交替规律、高潮与舒缓段落的位置分布 |
+
+**B. N-gram 指纹** — identify notable surface-level signatures in each article:
+- 连接词搭配（"说白了，就是..."、"换句话说"）
+- 段首惯用句式（"问题在于"、"有意思的是"）
+- 口头禅/标志性表达
+- 高频词组搭配
+
+Directly record any noteworthy n-gram via `append_observation` with the exact phrase in the example field. Do not wait for cross-article confirmation — each batch operates independently, and deduplication happens at the catalog level.
+
+**C. 情绪/态度曲线** — map the tonal trajectory of the article:
+- 标注语气变化节奏（如：开头克制 → 中段激烈 → 收尾冷静）
+- 识别情绪转折点及其触发手法（反问升温、举例降温、金句收束）
+- 如果多篇文章呈现相似弧线模式，作为 pattern 记录
+
+Record arc patterns as observations with `candidate_id` prefix `arc.` (e.g. `arc.restrained-to-intense-to-calm`).
 7. Call `recompute_stats`.
 8. Report: ingested count, snapshot id, rollback hint.
 
