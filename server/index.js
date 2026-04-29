@@ -52,6 +52,19 @@ import { bucketedSample, recomputeStats } from "./core/stats.js";
 import { appendText, readText, writeTextAtomic } from "./io/atomic.js";
 
 // ---------------------------------------------------------------------------
+// Per-author write lock — serializes read-modify-write on corpus-index.json
+// ---------------------------------------------------------------------------
+
+const authorLocks = new Map();
+
+function withAuthorLock(slug, fn) {
+  const prev = authorLocks.get(slug) || Promise.resolve();
+  const next = prev.then(fn, fn);
+  authorLocks.set(slug, next);
+  return next;
+}
+
+// ---------------------------------------------------------------------------
 // Path safety helpers
 //
 // MCPB does NOT enforce sandboxing — server runs with full user privileges.
@@ -438,39 +451,43 @@ When writing in this author's style:
   async ingest_execute({ slug, files, weight = 1.0, allow_near = false, skip_near = false, threshold = 6, no_snapshot = false, message = "" }) {
     ensureSlug(slug);
     if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
-    const paths = new AuthorPaths(slug);
-    const resolved = await Promise.all(files.map(safeResolve));
-    const plan = await planIngest(paths, resolved, { hammingThreshold: threshold });
+    return withAuthorLock(slug, async () => {
+      const paths = new AuthorPaths(slug);
+      const resolved = await Promise.all(files.map(safeResolve));
+      const plan = await planIngest(paths, resolved, { hammingThreshold: threshold });
 
-    if (plan.near_duplicates.length > 0 && !allow_near && !skip_near) {
-      return err("near-duplicates detected; re-run with allow_near=true or skip_near=true after user confirmation", {
-        plan,
+      if (plan.near_duplicates.length > 0 && !allow_near && !skip_near) {
+        return err("near-duplicates detected; re-run with allow_near=true or skip_near=true after user confirmation", {
+          plan,
+        });
+      }
+
+      const result = await executeIngest(paths, plan, {
+        weight,
+        takeSnapshot: !no_snapshot,
+        allowNear: allow_near,
+        message,
       });
-    }
-
-    const result = await executeIngest(paths, plan, {
-      weight,
-      takeSnapshot: !no_snapshot,
-      allowNear: allow_near,
-      message,
+      return ok({ mode: "executed", ...result });
     });
-    return ok({ mode: "executed", ...result });
   },
 
   async record_pattern_evidence({ slug, entry_id, topics = [], pattern_ids = [] }) {
     ensureSlug(slug);
     if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
-    const paths = new AuthorPaths(slug);
-    const index = await loadIndex(paths.corpusIndex);
-    const entry = index.entries.find((e) => e.entry_id === entry_id);
-    if (!entry) return err(`entry ${entry_id} not found in corpus`);
-    entry.topics = Array.from(new Set([...(entry.topics || []), ...topics]));
-    entry.pattern_ids = Array.from(new Set([...(entry.pattern_ids || []), ...pattern_ids]));
-    await saveIndex(paths.corpusIndex, index);
-    await logAction(paths, "record_pattern_evidence", {
-      details: { entry_id, topics, pattern_ids },
+    return withAuthorLock(slug, async () => {
+      const paths = new AuthorPaths(slug);
+      const index = await loadIndex(paths.corpusIndex);
+      const entry = index.entries.find((e) => e.entry_id === entry_id);
+      if (!entry) return err(`entry ${entry_id} not found in corpus`);
+      entry.topics = Array.from(new Set([...(entry.topics || []), ...topics]));
+      entry.pattern_ids = Array.from(new Set([...(entry.pattern_ids || []), ...pattern_ids]));
+      await saveIndex(paths.corpusIndex, index);
+      await logAction(paths, "record_pattern_evidence", {
+        details: { entry_id, topics, pattern_ids },
+      });
+      return ok({ updated: { entry_id, topics: entry.topics, pattern_ids: entry.pattern_ids } });
     });
-    return ok({ updated: { entry_id, topics: entry.topics, pattern_ids: entry.pattern_ids } });
   },
 
   async append_observation({ slug, candidate_id, description, example = "", entry_id }) {
@@ -498,16 +515,18 @@ When writing in this author's style:
   async recompute_stats({ slug }) {
     ensureSlug(slug);
     if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
-    const paths = new AuthorPaths(slug);
-    const stats = await recomputeStats(paths);
-    return ok({
-      patterns: Object.values(stats)
-        .sort((a, b) => b.weighted_count - a.weighted_count)
-        .map((s) => ({
-          pattern_id: s.pattern_id,
-          count: s.raw_count,
-          frequency: Number(s.frequency.toFixed(3)),
-        })),
+    return withAuthorLock(slug, async () => {
+      const paths = new AuthorPaths(slug);
+      const stats = await recomputeStats(paths);
+      return ok({
+        patterns: Object.values(stats)
+          .sort((a, b) => b.weighted_count - a.weighted_count)
+          .map((s) => ({
+            pattern_id: s.pattern_id,
+            count: s.raw_count,
+            frequency: Number(s.frequency.toFixed(3)),
+          })),
+      });
     });
   },
 
