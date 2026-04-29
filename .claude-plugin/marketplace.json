@@ -1,12 +1,16 @@
 {
   "name": "styleforge",
-  "owner": { "name": "coding-commits" },
+  "owner": {
+    "name": "coding-commits"
+  },
   "plugins": [
     {
       "name": "styleforge",
       "description": "Per-author writing-style management. Maintain isolated writing-style libraries, ingest corpus, get writing guides, and write in any author's style.",
       "version": "0.3.2",
-      "author": { "name": "styleforge" },
+      "author": {
+        "name": "styleforge"
+      },
       "source": "./",
       "category": "productivity"
     }

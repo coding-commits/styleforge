@@ -34,23 +34,74 @@
     }
   },
   "tools": [
-    {"name": "list_authors", "description": "List all writing-style authors registered in styleforge."},
-    {"name": "create_author", "description": "Register a new author with a slug and display name."},
-    {"name": "delete_author", "description": "Permanently delete an author and all their data. Requires explicit confirmation."},
-    {"name": "get_writing_guide", "description": "Return the complete writing guide for a given author: SKILL_OVERLAY + style-patterns + learned-rules. Call this BEFORE writing in an author's style."},
-    {"name": "sample_corpus", "description": "Return 1-5 corpus entries from an author, optionally filtered by topic. Bucketed sampling avoids over-representing any single topic."},
-    {"name": "ingest_dryrun", "description": "Inspect files for ingest without writing. Returns lists of new files, exact duplicates, near-duplicates, and errors. ALWAYS call this before ingest_execute and show the result to the user."},
-    {"name": "ingest_execute", "description": "Actually ingest files into an author's corpus. Creates a snapshot before writing. Refuses near-duplicates unless allow_near is set."},
-    {"name": "record_pattern_evidence", "description": "After viewing an ingested article, record its topic tags and which style-patterns it exhibits. This is how an author's style fingerprint accumulates."},
-    {"name": "append_observation", "description": "Append a candidate-pattern observation to observations.md. Use for novel patterns spotted in a single article that aren't yet in the rule catalog. Stays as observation until cross-corpus stability earns promotion."},
-    {"name": "recompute_stats", "description": "Recompute pattern frequencies from corpus-index.json. Run after record_pattern_evidence calls."},
-    {"name": "get_stats", "description": "Show corpus size, topic breakdown, and pattern frequencies for an author."},
-    {"name": "create_snapshot", "description": "Manually create a snapshot of an author's mutable state."},
-    {"name": "list_snapshots", "description": "List all snapshots for an author, with timestamps and labels."},
-    {"name": "rollback", "description": "Restore an author's state from a snapshot. Saves current state as a new snapshot first, so rollback-of-rollback works."},
-    {"name": "record_feedback", "description": "Append a feedback entry about a recent style-write output."},
-    {"name": "get_feedback_log", "description": "Read the feedback log for an author."},
-    {"name": "apply_learned_rule", "description": "After style-feedback skill negotiates a learned rule with the user, persist it to learned-rules.md. Requires user-confirmed rule text."}
+    {
+      "name": "list_authors",
+      "description": "List all writing-style authors registered in styleforge."
+    },
+    {
+      "name": "create_author",
+      "description": "Register a new author with a slug and display name."
+    },
+    {
+      "name": "delete_author",
+      "description": "Permanently delete an author and all their data. Requires explicit confirmation."
+    },
+    {
+      "name": "get_writing_guide",
+      "description": "Return the complete writing guide for a given author: SKILL_OVERLAY + style-patterns + learned-rules. Call this BEFORE writing in an author's style."
+    },
+    {
+      "name": "sample_corpus",
+      "description": "Return 1-5 corpus entries from an author, optionally filtered by topic. Bucketed sampling avoids over-representing any single topic."
+    },
+    {
+      "name": "ingest_dryrun",
+      "description": "Inspect files for ingest without writing. Returns lists of new files, exact duplicates, near-duplicates, and errors. ALWAYS call this before ingest_execute and show the result to the user."
+    },
+    {
+      "name": "ingest_execute",
+      "description": "Actually ingest files into an author's corpus. Creates a snapshot before writing. Refuses near-duplicates unless allow_near is set."
+    },
+    {
+      "name": "record_pattern_evidence",
+      "description": "After viewing an ingested article, record its topic tags and which style-patterns it exhibits. This is how an author's style fingerprint accumulates."
+    },
+    {
+      "name": "append_observation",
+      "description": "Append a candidate-pattern observation to observations.md. Use for novel patterns spotted in a single article that aren't yet in the rule catalog. Stays as observation until cross-corpus stability earns promotion."
+    },
+    {
+      "name": "recompute_stats",
+      "description": "Recompute pattern frequencies from corpus-index.json. Run after record_pattern_evidence calls."
+    },
+    {
+      "name": "get_stats",
+      "description": "Show corpus size, topic breakdown, and pattern frequencies for an author."
+    },
+    {
+      "name": "create_snapshot",
+      "description": "Manually create a snapshot of an author's mutable state."
+    },
+    {
+      "name": "list_snapshots",
+      "description": "List all snapshots for an author, with timestamps and labels."
+    },
+    {
+      "name": "rollback",
+      "description": "Restore an author's state from a snapshot. Saves current state as a new snapshot first, so rollback-of-rollback works."
+    },
+    {
+      "name": "record_feedback",
+      "description": "Append a feedback entry about a recent style-write output."
+    },
+    {
+      "name": "get_feedback_log",
+      "description": "Read the feedback log for an author."
+    },
+    {
+      "name": "apply_learned_rule",
+      "description": "After style-feedback skill negotiates a learned rule with the user, persist it to learned-rules.md. Requires user-confirmed rule text."
+    }
   ],
   "prompts": [
     {
@@ -86,7 +137,11 @@
   ],
   "compatibility": {
     "claude_desktop": ">=0.10.0",
-    "platforms": ["darwin", "win32", "linux"],
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
     "runtimes": {
       "node": ">=18.0.0"
     }

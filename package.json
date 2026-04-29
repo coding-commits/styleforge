@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node server/index.js",
     "test": "STYLEFORGE_HOME=/tmp/styleforge-test node server/smoke-test.js",
-    "postinstall": "node bin/postinstall.js"
+    "postinstall": "node bin/postinstall.js",
+    "version": "node bin/sync-version.js && git add manifest.json .claude-plugin/marketplace.json .claude-plugin/plugin.json skills/styleforge/SKILL.md"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0"
