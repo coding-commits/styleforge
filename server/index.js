@@ -479,7 +479,6 @@ When writing in this author's style:
     const paths = new AuthorPaths(slug);
     const stamp = new Date().toISOString();
     const block = [
-      "",
       `## ${candidate_id}`,
       `- 描述: ${description}`,
       example ? `- 例: ${example.trim().slice(0, 80)}` : null,
@@ -488,7 +487,8 @@ When writing in this author's style:
       `- 添加于: ${stamp}`,
       "",
     ].filter(Boolean).join("\n");
-    await appendText(paths.observations, block);
+    // Ensure double-newline before ## so sections never concatenate.
+    await appendText(paths.observations, "\n\n" + block);
     await logAction(paths, "append_observation", {
       details: { candidate_id, entry_id },
     });
