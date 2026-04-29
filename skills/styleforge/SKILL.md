@@ -1,7 +1,7 @@
 ---
 name: styleforge
 description: Use this skill when the user wants to "write in someone's style", "imitate an author", "use styleforge", manage writing-style authors, ingest corpus articles, check style stats, roll back style data, or mentions any /style-* command. Also trigger when the user says "write like X", "in the style of X", "style guide", "ingest these articles", "add to corpus", or references a styleforge author slug. This skill orchestrates the styleforge MCP tools for per-author writing-style management.
-version: 0.3.1
+version: 0.3.2
 ---
 
 # Styleforge — Writing-Style Management
