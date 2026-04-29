@@ -1,2 +1,3 @@
-plugins/styleforge/node_modules/
+node_modules/
 *.mcpb
+.DS_Store

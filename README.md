@@ -5,19 +5,16 @@ Per-author **writing-style management** as a Claude Code plugin. Works with any 
 ## Install
 
 ```bash
-# 1. Add the styleforge marketplace
-claude plugin marketplace add coding-commits/styleforge
+# From GitHub
+claude plugin add coding-commits/styleforge
 
-# 2. Install the plugin
-claude plugin install styleforge
-
-# 3. Install server dependencies
-cd $(claude plugin list --json 2>/dev/null | grep -A2 styleforge | grep installPath | cut -d'"' -f4) && npm install
-
-# 4. Restart Claude Code (close and reopen terminal, or: claude --restart)
+# Or from a local clone
+git clone https://github.com/coding-commits/styleforge.git
+cd styleforge
+claude plugin add $(pwd)
 ```
 
-After restart you get:
+After install you get:
 
 - `/style-write` — Write in an author's style
 - `/style-ingest` — Ingest new corpus articles
@@ -27,17 +24,6 @@ After restart you get:
 - `/style-stats` — Show corpus statistics
 
 Plus an auto-triggering **skill** — just say "write like hbdxsl" or "ingest these articles" and Claude handles the rest.
-
-## Install from source
-
-```bash
-git clone https://github.com/coding-commits/styleforge.git
-cd styleforge/plugins/styleforge
-npm install
-cd ../..
-claude plugin marketplace add $(pwd)
-claude plugin install styleforge
-```
 
 ## Usage
 
@@ -65,22 +51,17 @@ List all styleforge authors
 ```
 styleforge/
 ├── .claude-plugin/
-│   └── marketplace.json         # Marketplace definition
-├── README.md
-└── plugins/
-    └── styleforge/
-        ├── .claude-plugin/
-        │   └── plugin.json      # Plugin metadata
-        ├── .mcp.json            # Auto-registers MCP server
-        ├── commands/             # /style-* slash commands
-        ├── skills/
-        │   └── styleforge/
-        │       └── SKILL.md     # Auto-triggering skill
-        ├── server/
-        │   ├── index.js         # MCP server (17 tools, 6 prompts)
-        │   └── core/            # Business logic
-        ├── package.json
-        └── docs/
+│   └── plugin.json         # Plugin metadata
+├── .mcp.json               # Auto-registers MCP server
+├── commands/               # /style-* slash commands
+├── skills/
+│   └── styleforge/
+│       └── SKILL.md        # Auto-triggering skill
+├── server/
+│   ├── index.js            # MCP server (17 tools, 6 prompts)
+│   └── core/               # Business logic
+├── package.json
+└── docs/
 ```
 
 ## How It Works
@@ -136,8 +117,7 @@ All data at `~/.styleforge/` (configurable via `$STYLEFORGE_HOME`). Each author 
 ## Uninstall
 
 ```bash
-claude plugin uninstall styleforge
-claude plugin marketplace remove styleforge
+claude plugin remove styleforge
 ```
 
 To also remove data: `rm -rf ~/.styleforge`
