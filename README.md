@@ -6,14 +6,14 @@ Per-author **writing-style management** as a Claude Code plugin. Works with any 
 
 ```bash
 claude plugin marketplace add coding-commits/styleforge
-claude plugin install styleforge
+claude plugin install styleforge@styleforge
 ```
 
 ## Upgrade
 
 ```bash
 claude plugin marketplace update styleforge
-claude plugin update styleforge
+claude plugin update styleforge@styleforge
 ```
 
 Then restart Claude Code (close and reopen your terminal).
@@ -121,7 +121,7 @@ All data at `~/.styleforge/` (configurable via `$STYLEFORGE_HOME`). Each author 
 ## Uninstall
 
 ```bash
-claude plugin remove styleforge
+claude plugin remove styleforge@styleforge
 ```
 
 To also remove data: `rm -rf ~/.styleforge`
