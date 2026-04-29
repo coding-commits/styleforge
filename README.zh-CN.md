@@ -19,19 +19,43 @@ Claude Desktop 会弹出安装确认。Slash command（`/style-write` 等）开�
 
 ### Claude Code（插件安装）
 
+**第 1 步 — 安装插件（slash command + skill）**
+
 ```bash
 claude plugin marketplace add coding-commits/styleforge
 claude plugin install styleforge@styleforge
 ```
 
-升级：
+**第 2 步 — 安装依赖并注册 MCP 服务器**
+
+插件系统只安装 slash command 和自动触发 skill，MCP 服务器（提供
+`list_authors`、`get_writing_guide` 等工具）需要单独注册：
+
+```bash
+# 安装 Node 依赖（只需一次）
+cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
+
+# 全局注册 MCP 服务器
+claude mcp add -s user styleforge -e STYLEFORGE_HOME=~/.styleforge -- node ~/.claude/plugins/marketplaces/styleforge/server/index.js
+```
+
+安装后重启 Claude Code（关闭并重新打开终端）。
+
+> **为什么需要两步？** 插件系统管理 skill 和 slash command，但 MCP 服务器是
+> 独立的 stdio 进程，必须注册后 Claude Code 才能调用其工具。不执行第 2 步的话，
+> `/style-write` 等命令能触发，但底层工具不可用。
+
+**升级：**
 
 ```bash
 claude plugin marketplace update styleforge
 claude plugin update styleforge@styleforge
+
+# 升级后重新安装依赖
+cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
 ```
 
-安装后重启 Claude Code（关闭并重新打开终端）。
+重启 Claude Code。
 
 ### 通用说明
 

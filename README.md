@@ -4,19 +4,45 @@ Per-author **writing-style management** as a Claude Code plugin. Works with any 
 
 ## Install
 
+### Step 1 — Install the plugin (slash commands + skill)
+
 ```bash
 claude plugin marketplace add coding-commits/styleforge
 claude plugin install styleforge@styleforge
 ```
+
+### Step 2 — Install dependencies & register the MCP server
+
+The plugin marketplace installs slash commands and the auto-triggering skill, but
+the MCP server (which provides the actual tools like `list_authors`,
+`get_writing_guide`, etc.) needs to be registered separately:
+
+```bash
+# Install Node dependencies (required once)
+cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
+
+# Register the MCP server globally
+claude mcp add -s user styleforge -e STYLEFORGE_HOME=~/.styleforge -- node ~/.claude/plugins/marketplaces/styleforge/server/index.js
+```
+
+Then restart Claude Code (close and reopen your terminal).
+
+> **Why two steps?** The plugin system handles skills and slash commands.
+> The MCP server is a separate stdio process that must be registered so
+> Claude Code can call its tools. Without Step 2, commands like
+> `/style-write` will fire but the underlying tools won't be available.
 
 ## Upgrade
 
 ```bash
 claude plugin marketplace update styleforge
 claude plugin update styleforge@styleforge
+
+# Re-install dependencies after upgrade
+cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
 ```
 
-Then restart Claude Code (close and reopen your terminal).
+Then restart Claude Code.
 
 After install you get:
 
@@ -121,6 +147,7 @@ All data at `~/.styleforge/` (configurable via `$STYLEFORGE_HOME`). Each author 
 ## Uninstall
 
 ```bash
+claude mcp remove -s user styleforge
 claude plugin remove styleforge@styleforge
 ```
 
