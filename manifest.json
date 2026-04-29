@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "styleforge",
   "display_name": "Styleforge",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "Per-author writing-style management via MCP.",
   "long_description": "Maintain isolated writing-style libraries for one or more authors in any language. Ingest new corpus with deduplication and snapshots. Get on-demand writing guides via MCP tools and `/style-write` slash commands. Includes feedback intake and rollback for misingested corpus.",
   "author": {
@@ -61,7 +61,7 @@
     {
       "name": "style-ingest",
       "description": "Ingest new articles into an author's corpus. Provide local file paths.",
-      "text": "Ingest articles into a styleforge author's corpus.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Ask for local file paths on the user's machine. Files must be accessible from the local filesystem.\n3. Batch limit: 5 files. Split larger batches.\n4. Call `ingest_dryrun`. Show: new_files / exact_duplicates / near_duplicates. If near-dups, ask: (a) treat as new, (b) skip, (c) cancel.\n5. After confirmation, call `ingest_execute` with a descriptive `message` parameter.\n6. Enrichment: for each new entry, read the source, call `record_pattern_evidence` with topics + pattern_ids. Novel patterns go through `append_observation`.\n7. Call `recompute_stats`.\n8. Report: ingested count, snapshot id, rollback hint."
+      "text": "Ingest articles into a styleforge author's corpus.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Ask for local file paths on the user's machine. Files must be accessible from the local filesystem.\n3. Call `ingest_dryrun`. Show: new_files / exact_duplicates / near_duplicates. If near-dups, ask: (a) treat as new, (b) skip, (c) cancel.\n4. After confirmation, call `ingest_execute` with a descriptive `message` parameter.\n5. Ingest Plan: display a summary showing total articles to annotate, batch layout (groups of <=3 articles, <=100k words per batch, split long ones into shorter chunks), then proceed automatically without asking for approval.\n6. Enrichment (parallel batched): launch one parallel agent per batch (<=3 articles each). Each agent reads its articles, calls `record_pattern_evidence` with topics + pattern_ids. Novel patterns go through `append_observation`. Wait for all agents to complete.\n7. Call `recompute_stats`.\n8. Report: ingested count, snapshot id, rollback hint."
     },
     {
       "name": "style-feedback",
