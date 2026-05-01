@@ -2,7 +2,7 @@
 /**
  * styleforge MCP server
  *
- * Exposes 19 tools + 7 prompts that an agent uses to maintain per-author
+ * Exposes 21 tools + 9 prompts that an agent uses to maintain per-author
  * writing-style libraries (any language):
  *
  *   - list_authors / create_author / delete_author
@@ -13,14 +13,16 @@
  *   - create_snapshot / list_snapshots / rollback
  *   - record_feedback / get_feedback_log / apply_learned_rule
  *   - save_draft
+ *   - export_author / import_author
  *
- *   - prompts: style-write / style-ingest / style-feedback / style-help (slash-command shortcuts)
+ *   - prompts: style-write / style-ingest / style-feedback / style-export / style-import / style-help (slash-command shortcuts)
  *
  * Data location: $STYLEFORGE_HOME (set from manifest user_config.data_dir),
  * or ~/.styleforge as fallback.
  */
 
 import path from "node:path";
+import os from "node:os";
 import { promises as fs } from "node:fs";
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -84,6 +86,26 @@ function ensureSlug(slug) {
   if (!isValidSlug(slug)) {
     throw new Error(`invalid slug ${JSON.stringify(slug)} — must be lowercase letters/digits/-/_`);
   }
+}
+
+async function walkDir(dir) {
+  const results = [];
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch (e) {
+    if (e.code === "ENOENT") return results;
+    throw e;
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...(await walkDir(full)));
+    } else {
+      results.push(full);
+    }
+  }
+  return results;
 }
 
 /**
@@ -388,6 +410,35 @@ const TOOLS = [
         title: { type: "string", description: "Short title for the filename (optional, defaults to timestamp)." },
       },
       required: ["slug", "content"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "export_author",
+    description: "Export one or more authors as a portable JSON bundle. The bundle includes all mutable state and corpus files. Use -A (all=true) to export every author.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        slugs: { type: "array", items: { type: "string" }, description: "Author slugs to export. Ignored if all=true." },
+        all: { type: "boolean", default: false, description: "Export all authors." },
+        output_path: { type: "string", description: "Absolute path for the output .json file. Defaults to ~/styleforge-export-<timestamp>.json." },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "import_author",
+    description: "Import authors from a previously exported JSON bundle. Use -A (all=true) to import every author in the bundle, or specify slugs to import selectively. Existing authors are NOT overwritten unless overwrite=true.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        input_path: { type: "string", description: "Absolute path to the .json export bundle." },
+        slugs: { type: "array", items: { type: "string" }, description: "Which authors from the bundle to import. Ignored if all=true." },
+        all: { type: "boolean", default: false, description: "Import all authors in the bundle." },
+        overwrite: { type: "boolean", default: false, description: "If true, overwrite existing authors with the same slug. Otherwise skip them." },
+      },
+      required: ["input_path"],
       additionalProperties: false,
     },
   },
@@ -777,6 +828,134 @@ When writing in this author's style:
     await logAction(paths, "save_draft", { details: { path: dest } });
     return ok({ saved: dest });
   },
+
+  async export_author({ slugs = [], all = false, output_path = "" }) {
+    // Determine which authors to export.
+    let toExport;
+    if (all) {
+      toExport = (await listAuthors()).map((a) => a.slug);
+    } else {
+      if (!slugs || slugs.length === 0) return err("provide slugs or set all=true");
+      for (const s of slugs) ensureSlug(s);
+      toExport = slugs;
+    }
+
+    if (toExport.length === 0) return err("no authors found to export");
+
+    // Verify all exist.
+    for (const slug of toExport) {
+      if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
+    }
+
+    const bundle = {
+      format: "styleforge-export",
+      version: 1,
+      exported_at: new Date().toISOString(),
+      authors: {},
+    };
+
+    for (const slug of toExport) {
+      const paths = new AuthorPaths(slug);
+      const authorData = { files: {} };
+
+      // Recursively read all files under the author's base directory.
+      const files = await walkDir(paths.base);
+      for (const absPath of files) {
+        const rel = path.relative(paths.base, absPath);
+        // Skip snapshots to keep bundle size reasonable.
+        if (rel.startsWith("snapshots" + path.sep) || rel === "snapshots") continue;
+        try {
+          const buf = await fs.readFile(absPath);
+          authorData.files[rel] = buf.toString("base64");
+        } catch (e) {
+          if (e.code !== "ENOENT") throw e;
+        }
+      }
+      bundle.authors[slug] = authorData;
+    }
+
+    // Determine output path.
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const dest = output_path
+      ? path.resolve(output_path)
+      : path.join(os.homedir(), `styleforge-export-${ts}.json`);
+
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, JSON.stringify(bundle, null, 2), "utf-8");
+
+    return ok({
+      exported: toExport,
+      path: dest,
+      authors_count: toExport.length,
+    });
+  },
+
+  async import_author({ input_path, slugs = [], all = false, overwrite = false }) {
+    if (!input_path) return err("input_path is required");
+    const resolved = path.resolve(input_path);
+
+    let raw;
+    try {
+      raw = await fs.readFile(resolved, "utf-8");
+    } catch (e) {
+      if (e.code === "ENOENT") return err(`file not found: ${resolved}`);
+      throw e;
+    }
+
+    let bundle;
+    try {
+      bundle = JSON.parse(raw);
+    } catch {
+      return err("invalid JSON in export bundle");
+    }
+
+    if (bundle.format !== "styleforge-export" || !bundle.authors) {
+      return err("file is not a valid styleforge export bundle");
+    }
+
+    // Determine which authors to import.
+    const available = Object.keys(bundle.authors);
+    let toImport;
+    if (all) {
+      toImport = available;
+    } else if (slugs && slugs.length > 0) {
+      for (const s of slugs) {
+        if (!available.includes(s)) return err(`author ${s} not found in bundle (available: ${available.join(", ")})`);
+      }
+      toImport = slugs;
+    } else {
+      return err(`specify slugs or set all=true. Available in bundle: ${available.join(", ")}`);
+    }
+
+    const results = { imported: [], skipped: [], overwritten: [] };
+
+    for (const slug of toImport) {
+      ensureSlug(slug);
+      const paths = new AuthorPaths(slug);
+      const exists = await fs.stat(paths.base).then(() => true).catch(() => false);
+
+      if (exists && !overwrite) {
+        results.skipped.push(slug);
+        continue;
+      }
+      if (exists && overwrite) {
+        await fs.rm(paths.base, { recursive: true, force: true });
+        results.overwritten.push(slug);
+      }
+
+      // Restore files from bundle.
+      const authorData = bundle.authors[slug];
+      for (const [rel, b64] of Object.entries(authorData.files)) {
+        const dest = path.join(paths.base, rel);
+        await fs.mkdir(path.dirname(dest), { recursive: true });
+        await fs.writeFile(dest, Buffer.from(b64, "base64"));
+      }
+
+      results.imported.push(slug);
+    }
+
+    return ok(results);
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -902,6 +1081,39 @@ const PROMPTS = {
       ].join("\n");
     },
   },
+  "style-export": {
+    description: "Export one or more authors as a portable JSON bundle. Use -A to export all.",
+    arguments: [],
+    build() {
+      return [
+        "Export styleforge authors to a portable JSON bundle. Follow this exactly:",
+        "",
+        "1. Call `list_authors` to show available authors.",
+        "2. Ask the user which authors to export, or if they said `-A` / `all`, export all.",
+        "3. Optionally ask for an output path (default: ~/styleforge-export-<timestamp>.json).",
+        "4. Call `export_author` with the chosen slugs (or all=true).",
+        "5. Report the output file path and how many authors were exported.",
+      ].join("\n");
+    },
+  },
+  "style-import": {
+    description: "Import authors from a previously exported JSON bundle. Use -A to import all.",
+    arguments: [],
+    build() {
+      return [
+        "Import styleforge authors from a JSON export bundle. Follow this exactly:",
+        "",
+        "1. Ask the user for the path to the export .json file.",
+        "2. Call `import_author` with input_path and all=true (just to peek — with a dry check).",
+        "   Actually: call `import_author` with the path and no slugs/all to see what's available.",
+        "   The error response will list available authors in the bundle.",
+        "3. If user said `-A` / `all`, set all=true. Otherwise ask which authors to import.",
+        "4. If any authors already exist locally, ask if they want to overwrite (overwrite=true) or skip.",
+        "5. Call `import_author` with the final parameters.",
+        "6. Report: imported / skipped / overwritten counts.",
+      ].join("\n");
+    },
+  },
   "style-help": {
     description: "Show the styleforge user guide — from ingestion to writing to feedback.",
     arguments: [],
@@ -940,6 +1152,10 @@ const PROMPTS = {
         "### 5. Stats (`/style-stats`) & Rollback (`/style-rollback`)",
         "Check corpus health. Every mutation snapshots state first — rollback-of-rollback works.",
         "",
+        "### 6. Export & Import (`/style-export`, `/style-import`)",
+        "Export authors as portable JSON bundles to share or back up. Import from bundles to restore or transfer between machines.",
+        "Use `-A` to export/import all authors at once.",
+        "",
         "## Commands",
         "",
         "| Command | Description |",
@@ -951,6 +1167,8 @@ const PROMPTS = {
         "| `/style-feedback` | Digest feedback into learned rules |",
         "| `/style-stats` | Corpus statistics |",
         "| `/style-rollback` | Restore a snapshot |",
+        "| `/style-export` | Export authors as a portable bundle |",
+        "| `/style-import` | Import authors from a bundle |",
         "",
         "Data lives under `~/.styleforge/` (or `$STYLEFORGE_HOME`). Each author is fully isolated.",
       ].join("\n");

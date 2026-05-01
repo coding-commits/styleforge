@@ -116,6 +116,23 @@ Call `list_authors`, present as a concise table (slug, display name).
 2. Call `get_stats`.
 3. Present: entry count, topic breakdown, pattern frequencies, sample_warning if applicable.
 
+### Export authors (`/style-export`)
+
+1. Call `list_authors` to show available authors.
+2. Ask which authors to export. If user says `-A` or `all`, export all.
+3. Optionally ask for an output path (default: `~/styleforge-export-<timestamp>.json`).
+4. Call `export_author` with chosen slugs (or `all=true`).
+5. Report the output file path and how many authors were exported.
+
+### Import authors (`/style-import`)
+
+1. Ask for the path to the export `.json` file.
+2. Call `import_author` with the path (and no slugs/all) to discover what's in the bundle — the error response lists available authors.
+3. If user says `-A` or `all`, set `all=true`. Otherwise ask which to import.
+4. If any authors already exist locally, ask whether to overwrite (`overwrite=true`) or skip.
+5. Call `import_author` with final parameters.
+6. Report: imported / skipped / overwritten counts.
+
 ## Important Notes
 
 - All file paths for ingest must be local to the user's machine (not sandbox paths like `/mnt/user-data/`).

@@ -109,6 +109,14 @@
     {
       "name": "save_draft",
       "description": "Save a style-write draft as a .md file under the author's drafts/ directory. Returns the absolute file path."
+    },
+    {
+      "name": "export_author",
+      "description": "Export one or more authors as a portable JSON bundle including all mutable state and corpus files. Use all=true to export every author."
+    },
+    {
+      "name": "import_author",
+      "description": "Import authors from a previously exported JSON bundle. Specify slugs to import selectively, or all=true for everything. Existing authors are skipped unless overwrite=true."
     }
   ],
   "prompts": [
@@ -143,9 +151,19 @@
       "text": "Show statistics for a styleforge author.\n\n1. Call `list_authors`. If there's only one, use it. Otherwise ask.\n2. Call `get_stats`.\n3. Present: entry count, topic breakdown, pattern frequencies, sample_warning if applicable."
     },
     {
+      "name": "style-export",
+      "description": "Export one or more authors as a portable JSON bundle. Use -A to export all.",
+      "text": "Export styleforge authors to a portable JSON bundle.\n\n1. Call `list_authors` to show available authors.\n2. Ask which authors to export, or if user said `-A` / `all`, export all.\n3. Optionally ask for an output path (default: ~/styleforge-export-<timestamp>.json).\n4. Call `export_author` with the chosen slugs (or all=true).\n5. Report the output file path and how many authors were exported."
+    },
+    {
+      "name": "style-import",
+      "description": "Import authors from a previously exported JSON bundle. Use -A to import all.",
+      "text": "Import styleforge authors from a JSON export bundle.\n\n1. Ask for the path to the export .json file.\n2. Call `import_author` with the path and no slugs/all to discover available authors.\n3. If user said `-A` / `all`, set all=true. Otherwise ask which to import.\n4. If any authors already exist, ask about overwrite.\n5. Call `import_author` with final parameters.\n6. Report: imported / skipped / overwritten counts."
+    },
+    {
       "name": "style-help",
       "description": "Show the styleforge user guide — from ingestion to writing to feedback.",
-      "text": "Print the styleforge user guide directly to the user. Do NOT call any MCP tools. Cover: create author, ingest corpus (with signature passages), write (auto-saves .md), feedback/learned-rules, stats, rollback. List all /style-* commands in a table."
+      "text": "Print the styleforge user guide directly to the user. Do NOT call any MCP tools. Cover: create author, ingest corpus (with signature passages), write (auto-saves .md), feedback/learned-rules, stats, rollback, export/import. List all /style-* commands in a table."
     }
   ],
   "compatibility": {
