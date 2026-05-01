@@ -862,8 +862,9 @@ When writing in this author's style:
       const files = await walkDir(paths.base);
       for (const absPath of files) {
         const rel = path.relative(paths.base, absPath);
-        // Skip snapshots to keep bundle size reasonable.
+        // Skip snapshots and OS junk files.
         if (rel.startsWith("snapshots" + path.sep) || rel === "snapshots") continue;
+        if (path.basename(absPath) === ".DS_Store") continue;
         try {
           const buf = await fs.readFile(absPath);
           authorData.files[rel] = buf.toString("base64");
