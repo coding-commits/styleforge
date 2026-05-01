@@ -4,20 +4,9 @@ Per-author **writing-style management** as a Claude Code plugin. Works with any 
 
 ## Install
 
-### Step 1 — Install the plugin (slash commands + skill)
-
 ```bash
 claude plugin marketplace add coding-commits/styleforge
-claude plugin install styleforge@styleforge
-```
 
-### Step 2 — Install dependencies & register the MCP server
-
-The plugin marketplace installs slash commands and the auto-triggering skill, but
-the MCP server (which provides the actual tools like `list_authors`,
-`get_writing_guide`, etc.) needs to be registered separately:
-
-```bash
 # Install Node dependencies (required once)
 cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
 
@@ -27,16 +16,16 @@ claude mcp add -s user styleforge -e STYLEFORGE_HOME=~/.styleforge -- node ~/.cl
 
 Then restart Claude Code (close and reopen your terminal).
 
-> **Why two steps?** The plugin system handles skills and slash commands.
+> **Note:** The plugin system handles skills and slash commands.
 > The MCP server is a separate stdio process that must be registered so
-> Claude Code can call its tools. Without Step 2, commands like
-> `/style-write` will fire but the underlying tools won't be available.
+> Claude Code can call its tools. Without the `claude mcp add` step,
+> commands like `/style-write` will fire but the underlying tools won't
+> be available.
 
 ## Upgrade
 
 ```bash
 claude plugin marketplace update styleforge
-claude plugin update styleforge@styleforge
 
 # Re-install dependencies after upgrade
 cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
@@ -53,6 +42,8 @@ After install you get:
 - `/style-rollback` — Interactive rollback to a previous snapshot
 - `/style-authors` — List all registered authors
 - `/style-stats` — Show corpus statistics
+- `/style-export` — Export authors as a portable `.json.gz` bundle
+- `/style-import` — Import authors from a bundle
 
 Plus an auto-triggering **skill** — just say "write like hbdxsl" or "ingest these articles" and Claude handles the rest.
 
@@ -93,7 +84,7 @@ styleforge/
 │   └── styleforge/
 │       └── SKILL.md        # Auto-triggering skill
 ├── server/
-│   ├── index.js            # MCP server (19 tools, 7 prompts)
+│   ├── index.js            # MCP server (21 tools, 9 prompts)
 │   └── core/               # Business logic
 ├── package.json
 └── docs/
@@ -108,7 +99,7 @@ styleforge/
                   │ MCP protocol (local stdio)
        ┌──────────▼───────────────┐
        │  styleforge MCP server   │
-       │   • 19 tools, 7 prompts  │
+       │   • 21 tools, 9 prompts  │
        └──────────┬───────────────┘
                   │
        ┌──────────▼───────────────┐
@@ -133,6 +124,7 @@ styleforge/
 | `create_snapshot` / `list_snapshots` / `rollback` | Snapshots & rollback |
 | `record_feedback` / `get_feedback_log` / `apply_learned_rule` | Feedback loop |
 | `save_draft` | Auto-save style-write output as `.md` |
+| `export_author` / `import_author` | Portable backup & transfer (`.json.gz`) |
 
 ## Data
 
@@ -154,7 +146,7 @@ All data at `~/.styleforge/` (configurable via `$STYLEFORGE_HOME`). Each author 
 
 ```bash
 claude mcp remove -s user styleforge
-claude plugin remove styleforge@styleforge
+claude plugin marketplace remove styleforge
 ```
 
 To also remove data: `rm -rf ~/.styleforge`

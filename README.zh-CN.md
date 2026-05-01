@@ -19,19 +19,9 @@ Claude Desktop 会弹出安装确认。Slash command（`/style-write` 等）开�
 
 ### Claude Code（插件安装）
 
-**第 1 步 — 安装插件（slash command + skill）**
-
 ```bash
 claude plugin marketplace add coding-commits/styleforge
-claude plugin install styleforge@styleforge
-```
 
-**第 2 步 — 安装依赖并注册 MCP 服务器**
-
-插件系统只安装 slash command 和自动触发 skill，MCP 服务器（提供
-`list_authors`、`get_writing_guide` 等工具）需要单独注册：
-
-```bash
 # 安装 Node 依赖（只需一次）
 cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
 
@@ -41,15 +31,14 @@ claude mcp add -s user styleforge -e STYLEFORGE_HOME=~/.styleforge -- node ~/.cl
 
 安装后重启 Claude Code（关闭并重新打开终端）。
 
-> **为什么需要两步？** 插件系统管理 skill 和 slash command，但 MCP 服务器是
-> 独立的 stdio 进程，必须注册后 Claude Code 才能调用其工具。不执行第 2 步的话，
+> **说明：** 插件系统管理 skill 和 slash command，但 MCP 服务器是独立的 stdio
+> 进程，必须注册后 Claude Code 才能调用其工具。不执行 `claude mcp add` 的话，
 > `/style-write` 等命令能触发，但底层工具不可用。
 
 **升级：**
 
 ```bash
 claude plugin marketplace update styleforge
-claude plugin update styleforge@styleforge
 
 # 升级后重新安装依赖
 cd ~/.claude/plugins/marketplaces/styleforge && npm install && cd -
@@ -120,7 +109,7 @@ Server 做 *需要"算对、记牢"* 的事:哈希、去重、统计、快照、
 
 ## 提供的能力
 
-**17 个工具**(MCP tools,LLM 按需调用):
+**21 个工具**(MCP tools,LLM 按需调用):
 
 | 工具 | 作用 |
 |---|---|
@@ -128,12 +117,14 @@ Server 做 *需要"算对、记牢"* 的事:哈希、去重、统计、快照、
 | `get_writing_guide` | **核心**:返回该作者的完整写作指导(SKILL_OVERLAY + style-patterns + learned-rules) |
 | `sample_corpus` | 按主题分桶采样原文供 agent 参考 |
 | `ingest_dryrun` / `ingest_execute` | 安全吸收语料(自动去重 + 自动快照 + commit message) |
-| `record_pattern_evidence` / `append_observation` | Agent 阅读后回写 topics 与 pattern_ids |
+| `record_pattern_evidence` / `record_signature_passages` / `append_observation` | Agent 阅读后回写 topics、pattern_ids 与签名段落 |
 | `recompute_stats` / `get_stats` | 频次重算与展示 |
 | `create_snapshot` / `list_snapshots` / `rollback` | 快照与回退 |
 | `record_feedback` / `get_feedback_log` / `apply_learned_rule` | 反馈记录与消化 |
+| `save_draft` | 自动保存写作输出为 `.md` |
+| `export_author` / `import_author` | 导出/导入作者数据(`.json.gz`) |
 
-**7 个 slash command**(MCP prompts,用户输入 `/` 触发):
+**9 个 slash command**(MCP prompts,用户输入 `/` 触发):
 
 - `/style-write` — 在某作者风格下写作
 - `/style-ingest` — 喂新语料(总是先 dry-run)
@@ -141,6 +132,8 @@ Server 做 *需要"算对、记牢"* 的事:哈希、去重、统计、快照、
 - `/style-rollback` — 交互式回退到历史快照
 - `/style-authors` — 列出所有已注册作者
 - `/style-stats` — 查看某作者的语料统计
+- `/style-export` — 导出作者为便携 `.json.gz` 包
+- `/style-import` — 从导出包导入作者
 
 每个 prompt 注入一段流程指令,告诉 agent 该按什么顺序调用哪些工具。
 
