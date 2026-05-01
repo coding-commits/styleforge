@@ -112,11 +112,11 @@
     },
     {
       "name": "export_author",
-      "description": "Export one or more authors as a portable JSON bundle including all mutable state and corpus files. Use all=true to export every author."
+      "description": "Export one or more authors as a portable gzipped bundle (.json.gz) including all mutable state and corpus files. Use all=true to export every author."
     },
     {
       "name": "import_author",
-      "description": "Import authors from a previously exported JSON bundle. Specify slugs to import selectively, or all=true for everything. Existing authors are skipped unless overwrite=true."
+      "description": "Import authors from a previously exported bundle (.json.gz or .json). Specify slugs to import selectively, or all=true for everything. Existing authors are skipped unless overwrite=true."
     }
   ],
   "prompts": [

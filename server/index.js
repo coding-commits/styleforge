@@ -24,6 +24,11 @@
 import path from "node:path";
 import os from "node:os";
 import { promises as fs } from "node:fs";
+import { gzip, gunzip } from "node:zlib";
+import { promisify } from "node:util";
+
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -415,13 +420,13 @@ const TOOLS = [
   },
   {
     name: "export_author",
-    description: "Export one or more authors as a portable JSON bundle. The bundle includes all mutable state and corpus files. Use -A (all=true) to export every author.",
+    description: "Export one or more authors as a portable gzipped JSON bundle. The bundle includes all mutable state and corpus files. Use -A (all=true) to export every author.",
     inputSchema: {
       type: "object",
       properties: {
         slugs: { type: "array", items: { type: "string" }, description: "Author slugs to export. Ignored if all=true." },
         all: { type: "boolean", default: false, description: "Export all authors." },
-        output_path: { type: "string", description: "Absolute path for the output .json file. Defaults to ~/styleforge-export-<timestamp>.json." },
+        output_path: { type: "string", description: "Absolute path for the output file. Defaults to ~/styleforge-export-<timestamp>.json.gz." },
       },
       required: [],
       additionalProperties: false,
@@ -429,11 +434,11 @@ const TOOLS = [
   },
   {
     name: "import_author",
-    description: "Import authors from a previously exported JSON bundle. Use -A (all=true) to import every author in the bundle, or specify slugs to import selectively. Existing authors are NOT overwritten unless overwrite=true.",
+    description: "Import authors from a previously exported bundle (.json.gz or .json). Use -A (all=true) to import every author in the bundle, or specify slugs to import selectively. Existing authors are NOT overwritten unless overwrite=true.",
     inputSchema: {
       type: "object",
       properties: {
-        input_path: { type: "string", description: "Absolute path to the .json export bundle." },
+        input_path: { type: "string", description: "Absolute path to the export bundle (.json.gz or .json)." },
         slugs: { type: "array", items: { type: "string" }, description: "Which authors from the bundle to import. Ignored if all=true." },
         all: { type: "boolean", default: false, description: "Import all authors in the bundle." },
         overwrite: { type: "boolean", default: false, description: "If true, overwrite existing authors with the same slug. Otherwise skip them." },
@@ -879,15 +884,18 @@ When writing in this author's style:
     const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const dest = output_path
       ? path.resolve(output_path)
-      : path.join(os.homedir(), `styleforge-export-${ts}.json`);
+      : path.join(os.homedir(), `styleforge-export-${ts}.json.gz`);
 
     await fs.mkdir(path.dirname(dest), { recursive: true });
-    await fs.writeFile(dest, JSON.stringify(bundle, null, 2), "utf-8");
+    const json = JSON.stringify(bundle);
+    const compressed = await gzipAsync(Buffer.from(json, "utf-8"));
+    await fs.writeFile(dest, compressed);
 
     return ok({
       exported: toExport,
       path: dest,
       authors_count: toExport.length,
+      size_bytes: compressed.length,
     });
   },
 
@@ -895,12 +903,21 @@ When writing in this author's style:
     if (!input_path) return err("input_path is required");
     const resolved = path.resolve(input_path);
 
-    let raw;
+    let buf;
     try {
-      raw = await fs.readFile(resolved, "utf-8");
+      buf = await fs.readFile(resolved);
     } catch (e) {
       if (e.code === "ENOENT") return err(`file not found: ${resolved}`);
       throw e;
+    }
+
+    // Support both gzipped and plain JSON.
+    let raw;
+    if (buf[0] === 0x1f && buf[1] === 0x8b) {
+      // gzip magic number
+      raw = (await gunzipAsync(buf)).toString("utf-8");
+    } else {
+      raw = buf.toString("utf-8");
     }
 
     let bundle;
