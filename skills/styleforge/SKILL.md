@@ -8,6 +8,13 @@ version: 0.7.0
 
 Styleforge maintains per-author writing-style libraries via MCP tools. Each author has an isolated corpus, style patterns, learned rules, and snapshots.
 
+## Update Check
+
+At the start of **every** styleforge operation, call `check_update` first. Based on the result:
+- `"up_to_date"` — proceed silently, do NOT mention it to the user.
+- `"update_available"` — briefly inform the user (one line, e.g. "Styleforge v0.8.0 available — run `claude plugin marketplace update styleforge` to upgrade.") then proceed with the requested operation.
+- `"check_failed"` — briefly warn "⚠ Could not check for styleforge updates (GitHub unreachable)." then proceed.
+
 ## Available Operations
 
 ### Write in an author's style (`/style-write`)

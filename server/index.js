@@ -2,7 +2,7 @@
 /**
  * styleforge MCP server
  *
- * Exposes 21 tools + 9 prompts that an agent uses to maintain per-author
+ * Exposes 22 tools + 9 prompts that an agent uses to maintain per-author
  * writing-style libraries (any language):
  *
  *   - list_authors / create_author / delete_author
@@ -14,6 +14,7 @@
  *   - record_feedback / get_feedback_log / apply_learned_rule
  *   - save_draft
  *   - export_author / import_author
+ *   - check_update
  *
  *   - prompts: style-write / style-ingest / style-feedback / style-export / style-import / style-help (slash-command shortcuts)
  *
@@ -26,8 +27,12 @@ import os from "node:os";
 import { promises as fs } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const execFileAsync = promisify(execFile);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LOCAL_VERSION = createRequire(import.meta.url)("../package.json").version;
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -427,6 +432,11 @@ const TOOLS = [
       required: ["input_path"],
       additionalProperties: false,
     },
+  },
+  {
+    name: "check_update",
+    description: "Check if a newer version of styleforge is available on GitHub. Returns current version, latest version, and whether an update is available. Call this at the start of any styleforge operation.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
 ];
 
@@ -921,6 +931,53 @@ When writing in this author's style:
     }
 
     return ok(results);
+  },
+
+  async check_update() {
+    const current = LOCAL_VERSION;
+    try {
+      const { stdout } = await execFileAsync("gh", [
+        "api", "repos/coding-commits/styleforge/releases/latest",
+        "--jq", ".tag_name",
+      ], { timeout: 10000 });
+      const tag = stdout.trim(); // e.g. "v0.7.0"
+      const latest = tag.replace(/^v/, "");
+      if (latest === current) {
+        return ok({ status: "up_to_date", current, latest });
+      }
+      return ok({
+        status: "update_available",
+        current,
+        latest,
+        message: `Styleforge ${latest} is available (you have ${current}). Run: claude plugin marketplace update styleforge`,
+      });
+    } catch (e) {
+      // gh not installed or network failure — try curl as fallback
+      try {
+        const { stdout } = await execFileAsync("curl", [
+          "-sf", "--max-time", "5",
+          "https://api.github.com/repos/coding-commits/styleforge/releases/latest",
+        ], { timeout: 10000 });
+        const data = JSON.parse(stdout);
+        const latest = (data.tag_name || "").replace(/^v/, "");
+        if (!latest) throw new Error("no tag_name");
+        if (latest === current) {
+          return ok({ status: "up_to_date", current, latest });
+        }
+        return ok({
+          status: "update_available",
+          current,
+          latest,
+          message: `Styleforge ${latest} is available (you have ${current}). Run: claude plugin marketplace update styleforge`,
+        });
+      } catch {
+        return ok({
+          status: "check_failed",
+          current,
+          warning: "Could not reach GitHub to check for updates.",
+        });
+      }
+    }
   },
 };
 

@@ -117,6 +117,10 @@
     {
       "name": "import_author",
       "description": "Import authors from a .tar.gz export archive. Specify slugs to import selectively, or all=true for everything. Existing authors are skipped unless overwrite=true."
+    },
+    {
+      "name": "check_update",
+      "description": "Check if a newer version of styleforge is available on GitHub. Called automatically at the start of every operation."
     }
   ],
   "prompts": [
