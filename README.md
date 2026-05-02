@@ -42,7 +42,7 @@ After install you get:
 - `/style-rollback` — Interactive rollback to a previous snapshot
 - `/style-authors` — List all registered authors
 - `/style-stats` — Show corpus statistics
-- `/style-export` — Export authors as a portable `.json.gz` bundle
+- `/style-export` — Export authors as a portable `.tar.gz` archive
 - `/style-import` — Import authors from a bundle
 
 Plus an auto-triggering **skill** — just say "write like hbdxsl" or "ingest these articles" and Claude handles the rest.
@@ -124,7 +124,7 @@ styleforge/
 | `create_snapshot` / `list_snapshots` / `rollback` | Snapshots & rollback |
 | `record_feedback` / `get_feedback_log` / `apply_learned_rule` | Feedback loop |
 | `save_draft` | Auto-save style-write output as `.md` |
-| `export_author` / `import_author` | Portable backup & transfer (`.json.gz`) |
+| `export_author` / `import_author` | Portable backup & transfer (`.tar.gz`) |
 
 ## Data
 

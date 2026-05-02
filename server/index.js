@@ -24,11 +24,10 @@
 import path from "node:path";
 import os from "node:os";
 import { promises as fs } from "node:fs";
-import { gzip, gunzip } from "node:zlib";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-const gzipAsync = promisify(gzip);
-const gunzipAsync = promisify(gunzip);
+const execFileAsync = promisify(execFile);
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -41,6 +40,7 @@ import {
 
 import {
   AuthorPaths,
+  authorsDir,
   createAuthor,
   defaultRoot,
   deleteAuthor,
@@ -93,25 +93,6 @@ function ensureSlug(slug) {
   }
 }
 
-async function walkDir(dir) {
-  const results = [];
-  let entries;
-  try {
-    entries = await fs.readdir(dir, { withFileTypes: true });
-  } catch (e) {
-    if (e.code === "ENOENT") return results;
-    throw e;
-  }
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...(await walkDir(full)));
-    } else {
-      results.push(full);
-    }
-  }
-  return results;
-}
 
 /**
  * Re-sample examples in style-patterns.md text using observations.md.
@@ -420,13 +401,13 @@ const TOOLS = [
   },
   {
     name: "export_author",
-    description: "Export one or more authors as a portable gzipped JSON bundle. The bundle includes all mutable state and corpus files. Use -A (all=true) to export every author.",
+    description: "Export one or more authors as a .tar.gz archive. Includes corpus, patterns, observations, learned-rules, and metadata. Excludes snapshots, drafts, and OS junk. Use -A (all=true) to export every author.",
     inputSchema: {
       type: "object",
       properties: {
         slugs: { type: "array", items: { type: "string" }, description: "Author slugs to export. Ignored if all=true." },
         all: { type: "boolean", default: false, description: "Export all authors." },
-        output_path: { type: "string", description: "Absolute path for the output file. Defaults to ~/styleforge-export-<timestamp>.json.gz." },
+        output_path: { type: "string", description: "Absolute path for the output .tar.gz file. Defaults to ~/styleforge-export-<timestamp>.tar.gz." },
       },
       required: [],
       additionalProperties: false,
@@ -434,11 +415,11 @@ const TOOLS = [
   },
   {
     name: "import_author",
-    description: "Import authors from a previously exported bundle (.json.gz or .json). Use -A (all=true) to import every author in the bundle, or specify slugs to import selectively. Existing authors are NOT overwritten unless overwrite=true.",
+    description: "Import authors from a previously exported .tar.gz archive. Use -A (all=true) to import every author in the archive, or specify slugs to import selectively. Existing authors are NOT overwritten unless overwrite=true.",
     inputSchema: {
       type: "object",
       properties: {
-        input_path: { type: "string", description: "Absolute path to the export bundle (.json.gz or .json)." },
+        input_path: { type: "string", description: "Absolute path to the .tar.gz export archive." },
         slugs: { type: "array", items: { type: "string" }, description: "Which authors from the bundle to import. Ignored if all=true." },
         all: { type: "boolean", default: false, description: "Import all authors in the bundle." },
         overwrite: { type: "boolean", default: false, description: "If true, overwrite existing authors with the same slug. Otherwise skip them." },
@@ -852,50 +833,33 @@ When writing in this author's style:
       if (!(await getAuthor(slug))) return err(`author ${slug} not found`);
     }
 
-    const bundle = {
-      format: "styleforge-export",
-      version: 1,
-      exported_at: new Date().toISOString(),
-      authors: {},
-    };
-
-    for (const slug of toExport) {
-      const paths = new AuthorPaths(slug);
-      const authorData = { files: {} };
-
-      // Recursively read all files under the author's base directory.
-      const files = await walkDir(paths.base);
-      for (const absPath of files) {
-        const rel = path.relative(paths.base, absPath);
-        // Skip snapshots and OS junk files.
-        if (rel.startsWith("snapshots" + path.sep) || rel === "snapshots") continue;
-        if (path.basename(absPath) === ".DS_Store") continue;
-        try {
-          const buf = await fs.readFile(absPath);
-          authorData.files[rel] = buf.toString("base64");
-        } catch (e) {
-          if (e.code !== "ENOENT") throw e;
-        }
-      }
-      bundle.authors[slug] = authorData;
-    }
-
     // Determine output path.
     const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const dest = output_path
       ? path.resolve(output_path)
-      : path.join(os.homedir(), `styleforge-export-${ts}.json.gz`);
+      : path.join(os.homedir(), `styleforge-export-${ts}.tar.gz`);
 
     await fs.mkdir(path.dirname(dest), { recursive: true });
-    const json = JSON.stringify(bundle);
-    const compressed = await gzipAsync(Buffer.from(json, "utf-8"));
-    await fs.writeFile(dest, compressed);
 
+    // tar from the authors directory, including only selected slugs.
+    // Exclude: snapshots/, .DS_Store, drafts/
+    const authorsBase = authorsDir();
+    const args = [
+      "czf", dest,
+      "--exclude", "snapshots",
+      "--exclude", ".DS_Store",
+      "--exclude", "drafts",
+      "-C", authorsBase,
+      ...toExport,
+    ];
+    await execFileAsync("tar", args);
+
+    const stat = await fs.stat(dest);
     return ok({
       exported: toExport,
       path: dest,
       authors_count: toExport.length,
-      size_bytes: compressed.length,
+      size_bytes: stat.size,
     });
   },
 
@@ -903,47 +867,37 @@ When writing in this author's style:
     if (!input_path) return err("input_path is required");
     const resolved = path.resolve(input_path);
 
-    let buf;
     try {
-      buf = await fs.readFile(resolved);
-    } catch (e) {
-      if (e.code === "ENOENT") return err(`file not found: ${resolved}`);
-      throw e;
-    }
-
-    // Support both gzipped and plain JSON.
-    let raw;
-    if (buf[0] === 0x1f && buf[1] === 0x8b) {
-      // gzip magic number
-      raw = (await gunzipAsync(buf)).toString("utf-8");
-    } else {
-      raw = buf.toString("utf-8");
-    }
-
-    let bundle;
-    try {
-      bundle = JSON.parse(raw);
+      await fs.access(resolved);
     } catch {
-      return err("invalid JSON in export bundle");
+      return err(`file not found: ${resolved}`);
     }
 
-    if (bundle.format !== "styleforge-export" || !bundle.authors) {
-      return err("file is not a valid styleforge export bundle");
-    }
+    // List top-level directories in the tar to discover available authors.
+    const { stdout } = await execFileAsync("tar", ["tzf", resolved]);
+    const available = [...new Set(
+      stdout.split("\n")
+        .map((l) => l.split("/")[0])
+        .filter((s) => s && isValidSlug(s))
+    )];
+
+    if (available.length === 0) return err("no valid author directories found in archive");
 
     // Determine which authors to import.
-    const available = Object.keys(bundle.authors);
     let toImport;
     if (all) {
       toImport = available;
     } else if (slugs && slugs.length > 0) {
       for (const s of slugs) {
-        if (!available.includes(s)) return err(`author ${s} not found in bundle (available: ${available.join(", ")})`);
+        if (!available.includes(s)) return err(`author ${s} not found in archive (available: ${available.join(", ")})`);
       }
       toImport = slugs;
     } else {
-      return err(`specify slugs or set all=true. Available in bundle: ${available.join(", ")}`);
+      return err(`specify slugs or set all=true. Available in archive: ${available.join(", ")}`);
     }
+
+    const authorsBase = authorsDir();
+    await fs.mkdir(authorsBase, { recursive: true });
 
     const results = { imported: [], skipped: [], overwritten: [] };
 
@@ -961,14 +915,8 @@ When writing in this author's style:
         results.overwritten.push(slug);
       }
 
-      // Restore files from bundle.
-      const authorData = bundle.authors[slug];
-      for (const [rel, b64] of Object.entries(authorData.files)) {
-        const dest = path.join(paths.base, rel);
-        await fs.mkdir(path.dirname(dest), { recursive: true });
-        await fs.writeFile(dest, Buffer.from(b64, "base64"));
-      }
-
+      // Extract only this author's directory from the archive.
+      await execFileAsync("tar", ["xzf", resolved, "-C", authorsBase, slug]);
       results.imported.push(slug);
     }
 

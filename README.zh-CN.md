@@ -122,7 +122,7 @@ Server 做 *需要"算对、记牢"* 的事:哈希、去重、统计、快照、
 | `create_snapshot` / `list_snapshots` / `rollback` | 快照与回退 |
 | `record_feedback` / `get_feedback_log` / `apply_learned_rule` | 反馈记录与消化 |
 | `save_draft` | 自动保存写作输出为 `.md` |
-| `export_author` / `import_author` | 导出/导入作者数据(`.json.gz`) |
+| `export_author` / `import_author` | 导出/导入作者数据(`.tar.gz`) |
 
 **9 个 slash command**(MCP prompts,用户输入 `/` 触发):
 
@@ -132,8 +132,8 @@ Server 做 *需要"算对、记牢"* 的事:哈希、去重、统计、快照、
 - `/style-rollback` — 交互式回退到历史快照
 - `/style-authors` — 列出所有已注册作者
 - `/style-stats` — 查看某作者的语料统计
-- `/style-export` — 导出作者为便携 `.json.gz` 包
-- `/style-import` — 从导出包导入作者
+- `/style-export` — 导出作者为 `.tar.gz` 归档
+- `/style-import` — 从归档导入作者
 
 每个 prompt 注入一段流程指令,告诉 agent 该按什么顺序调用哪些工具。
 
